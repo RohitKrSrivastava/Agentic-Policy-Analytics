@@ -33,6 +33,7 @@ coverage.xml
 # Environments & Databases
 .env
 *.db
+!backend/data/raw/*.db
 backend_data.db
 
 # Node & Frontend
