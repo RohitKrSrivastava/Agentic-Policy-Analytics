@@ -12,53 +12,53 @@ The platform follows a clean, decoupled **Hexagonal (Ports and Adapters)** archi
 
 ```mermaid
 flowchart TD
-    subgraph Client_Layer [Presentation Layer: Next.js / React + TypeScript + Tailwind CSS]
-        UI[Natural Language Query Input & Preset Inquiries]
-        MON[Real-Time ReAct Activity Monitor]
-        DASH[Interactive Charts: Recharts & KPIs]
-        REP[Policy Report View & Hallucination Certificate]
-        HIST[Session History Drawer]
+    subgraph Client_Layer ["Presentation Layer: Next.js / React + TypeScript + Tailwind CSS"]
+        UI["Natural Language Query Input & Preset Inquiries"]
+        MON["Real-Time ReAct Activity Monitor"]
+        DASH["Interactive Charts: Recharts & KPIs"]
+        REP["Policy Report View & Hallucination Certificate"]
+        HIST["Session History Drawer"]
     end
 
-    subgraph API_Layer [Service & Transport Layer: FastAPI + WebSockets]
-        REST[RESTful API Endpoints /api/v1/*]
-        WS[WebSocket Hub /ws/{session_id}]
-        BG[Asyncio Background Task Dispatcher]
+    subgraph API_Layer ["Service & Transport Layer: FastAPI + WebSockets"]
+        REST["RESTful API Endpoints /api/v1/*"]
+        WS["WebSocket Hub /ws/:session_id"]
+        BG["Asyncio Background Task Dispatcher"]
     end
 
-    subgraph Agentic_Layer [Autonomous Multi-Agent Orchestration Layer]
-        COORD[Data Coordinator Agent: Planning & Delegation]
-        EXTR[Data Extraction Agent: Multi-Source Acquisition]
-        ANALYTICS[Analytics Agent: Econometric Modeling & RAG]
-        GUARD[Hallucination Verification Guard: Ground Truth Audit]
-        ORCH[Workflow Orchestrator: Shared Blackboard State]
+    subgraph Agentic_Layer ["Autonomous Multi-Agent Orchestration Layer"]
+        COORD["Data Coordinator Agent: Planning & Delegation"]
+        EXTR["Data Extraction Agent: Multi-Source Acquisition"]
+        ANALYTICS["Analytics Agent: Econometric Modeling & RAG"]
+        GUARD["Hallucination Verification Guard: Ground Truth Audit"]
+        ORCH["Workflow Orchestrator: Shared Blackboard State"]
     end
 
-    subgraph Multi_Cloud_LLM [Multi-Cloud LLM Layer & Automated Failover]
-        ROUTER{Multi-Cloud LLM Router}
-        OAI[OpenAI GPT-4o-mini]
-        GEM[Google Cloud Gemini 1.5 Flash]
-        BED[AWS Bedrock Claude 3.5 Sonnet]
-        LOCAL[Local Heuristic Engine: Offline/Air-Gap Safe]
+    subgraph Multi_Cloud_LLM ["Multi-Cloud LLM Layer & Automated Failover"]
+        ROUTER{"Multi-Cloud LLM Router"}
+        OAI["OpenAI GPT-4o-mini"]
+        GEM["Google Cloud Gemini 1.5 Flash"]
+        BED["AWS Bedrock Claude 3.5 Sonnet"]
+        LOCAL["Local Heuristic Engine: Offline/Air-Gap Safe"]
     end
 
-    subgraph Tools_Layer [Tools & Connectors Layer]
-        DCONN[Government Data Connector]
-        DQ[Data Quality & Imputation Engine]
-        STAT[Statistical & Projection Engine]
-        RAG[Policy RAG Document Retriever]
+    subgraph Tools_Layer ["Tools & Connectors Layer"]
+        DCONN["Government Data Connector"]
+        DQ["Data Quality & Imputation Engine"]
+        STAT["Statistical & Projection Engine"]
+        RAG["Policy RAG Document Retriever"]
     end
 
-    subgraph Storage_Layer [Storage & Persistence Layer]
-        SQLITE[(SQLite Database / SQLAlchemy ORM)]
-        RAW[(Raw Datasets: CSV, Excel, JSON, SQLite)]
-        DOCS[(Policy Whitepapers: Markdown)]
+    subgraph Storage_Layer ["Storage & Persistence Layer"]
+        SQLITE[("SQLite Database / SQLAlchemy ORM")]
+        RAW[("Raw Datasets: CSV, Excel, JSON, SQLite")]
+        DOCS[("Policy Whitepapers: Markdown")]
     end
 
-    UI -->|HTTP POST| REST
-    REST -->|Spawn| BG
-    BG -->|Execute| ORCH
-    WS <-->|Stream ReAct Steps| MON
+    UI --> REST
+    REST --> BG
+    BG --> ORCH
+    WS <--> MON
     ORCH --> COORD
     ORCH --> EXTR
     ORCH --> ANALYTICS
@@ -66,10 +66,10 @@ flowchart TD
 
     COORD --> ROUTER
     ANALYTICS --> ROUTER
-    ROUTER -->|Primary| OAI
-    ROUTER -->|Failover 1| GEM
-    ROUTER -->|Failover 2| BED
-    ROUTER -->|Offline Safety| LOCAL
+    ROUTER --> OAI
+    ROUTER --> GEM
+    ROUTER --> BED
+    ROUTER --> LOCAL
 
     EXTR --> DCONN
     DCONN --> RAW
