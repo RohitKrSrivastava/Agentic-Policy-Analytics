@@ -1,7 +1,8 @@
 # Innovation Assessment: Evolving the Agentic Policy Data Analytics Platform for Secure Government Environments
 
 **Repository**: [https://github.com/RohitKrSrivastava/agentic-policy-analytics](https://github.com/RohitKrSrivastava/agentic-policy-analytics)  
-**Author**: Senior Full Stack AI Engineer  
+**Author**: Rohit Kumar Srivastava
+**LinkedIn**: https://www.linkedin.com/in/rohit-kumar-srivastava-59921352/
 **Target Context**: Singapore Public Sector, Whole-of-Government (WOG), GovTech SG, IMDA, and Secure Enclaves  
 **Document Type**: Architectural Evolution & Strategic Roadmap Whitepaper  
 
