@@ -1,0 +1,45 @@
+{
+  "help": "https://data.gov.sg/api/3/action/help_show?name=datagovsg_wages_by_sector",
+  "success": true,
+  "result": {
+    "resource_id": "d_09b4dbcb30a84d4fb4e5f2cfbb3238bb",
+    "dataset_title": "Gross Monthly Income from Work (Excluding Employer CPF) by Industry and Occupation",
+    "agency": "Ministry of Manpower / GovTech Data.gov.sg",
+    "records": [
+      {"year": 2020, "industry": "Information & Communications", "role_level": "Software Engineer & Developer", "median_gross_wage_sgd": 5750, "p25_gross_wage_sgd": 4200, "p75_gross_wage_sgd": 7800},
+      {"year": 2020, "industry": "Information & Communications", "role_level": "Data Scientist & AI Specialist", "median_gross_wage_sgd": 6500, "p25_gross_wage_sgd": 4800, "p75_gross_wage_sgd": 8900},
+      {"year": 2020, "industry": "Information & Communications", "role_level": "Cybersecurity Specialist", "median_gross_wage_sgd": 6200, "p25_gross_wage_sgd": 4600, "p75_gross_wage_sgd": 8400},
+      {"year": 2020, "industry": "Information & Communications", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 5500, "p25_gross_wage_sgd": 3900, "p75_gross_wage_sgd": 7600},
+      {"year": 2020, "industry": "Financial & Insurance Services", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 5800, "p25_gross_wage_sgd": 4100, "p75_gross_wage_sgd": 8200},
+      {"year": 2020, "industry": "National All Sectors", "role_level": "National Median Resident", "median_gross_wage_sgd": 4534, "p25_gross_wage_sgd": 2800, "p75_gross_wage_sgd": 6800},
+
+      {"year": 2021, "industry": "Information & Communications", "role_level": "Software Engineer & Developer", "median_gross_wage_sgd": 6400, "p25_gross_wage_sgd": 4700, "p75_gross_wage_sgd": 8900},
+      {"year": 2021, "industry": "Information & Communications", "role_level": "Data Scientist & AI Specialist", "median_gross_wage_sgd": 7200, "p25_gross_wage_sgd": 5400, "p75_gross_wage_sgd": 9800},
+      {"year": 2021, "industry": "Information & Communications", "role_level": "Cybersecurity Specialist", "median_gross_wage_sgd": 6900, "p25_gross_wage_sgd": 5100, "p75_gross_wage_sgd": 9300},
+      {"year": 2021, "industry": "Information & Communications", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 6100, "p25_gross_wage_sgd": 4400, "p75_gross_wage_sgd": 8500},
+      {"year": 2021, "industry": "Financial & Insurance Services", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 6150, "p25_gross_wage_sgd": 4350, "p75_gross_wage_sgd": 8700},
+      {"year": 2021, "industry": "National All Sectors", "role_level": "National Median Resident", "median_gross_wage_sgd": 4680, "p25_gross_wage_sgd": 2900, "p75_gross_wage_sgd": 7050},
+
+      {"year": 2022, "industry": "Information & Communications", "role_level": "Software Engineer & Developer", "median_gross_wage_sgd": 7100, "p25_gross_wage_sgd": 5200, "p75_gross_wage_sgd": 9800},
+      {"year": 2022, "industry": "Information & Communications", "role_level": "Data Scientist & AI Specialist", "median_gross_wage_sgd": 8100, "p25_gross_wage_sgd": 6000, "p75_gross_wage_sgd": 11000},
+      {"year": 2022, "industry": "Information & Communications", "role_level": "Cybersecurity Specialist", "median_gross_wage_sgd": 7700, "p25_gross_wage_sgd": 5800, "p75_gross_wage_sgd": 10400},
+      {"year": 2022, "industry": "Information & Communications", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 6800, "p25_gross_wage_sgd": 4900, "p75_gross_wage_sgd": 9400},
+      {"year": 2022, "industry": "Financial & Insurance Services", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 6550, "p25_gross_wage_sgd": 4600, "p75_gross_wage_sgd": 9200},
+      {"year": 2022, "industry": "National All Sectors", "role_level": "National Median Resident", "median_gross_wage_sgd": 5070, "p25_gross_wage_sgd": 3100, "p75_gross_wage_sgd": 7500},
+
+      {"year": 2023, "industry": "Information & Communications", "role_level": "Software Engineer & Developer", "median_gross_wage_sgd": 7300, "p25_gross_wage_sgd": 5400, "p75_gross_wage_sgd": 10100},
+      {"year": 2023, "industry": "Information & Communications", "role_level": "Data Scientist & AI Specialist", "median_gross_wage_sgd": 8400, "p25_gross_wage_sgd": 6300, "p75_gross_wage_sgd": 11500},
+      {"year": 2023, "industry": "Information & Communications", "role_level": "Cybersecurity Specialist", "median_gross_wage_sgd": 8000, "p25_gross_wage_sgd": 6000, "p75_gross_wage_sgd": 10800},
+      {"year": 2023, "industry": "Information & Communications", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 7000, "p25_gross_wage_sgd": 5100, "p75_gross_wage_sgd": 9700},
+      {"year": 2023, "industry": "Financial & Insurance Services", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 6800, "p25_gross_wage_sgd": 4800, "p75_gross_wage_sgd": 9600},
+      {"year": 2023, "industry": "National All Sectors", "role_level": "National Median Resident", "median_gross_wage_sgd": 5197, "p25_gross_wage_sgd": 3200, "p75_gross_wage_sgd": 7800},
+
+      {"year": 2024, "industry": "Information & Communications", "role_level": "Software Engineer & Developer", "median_gross_wage_sgd": 7650, "p25_gross_wage_sgd": 5600, "p75_gross_wage_sgd": 10600},
+      {"year": 2024, "industry": "Information & Communications", "role_level": "Data Scientist & AI Specialist", "median_gross_wage_sgd": 8800, "p25_gross_wage_sgd": 6600, "p75_gross_wage_sgd": 12100},
+      {"year": 2024, "industry": "Information & Communications", "role_level": "Cybersecurity Specialist", "median_gross_wage_sgd": 8350, "p25_gross_wage_sgd": 6250, "p75_gross_wage_sgd": 11300},
+      {"year": 2024, "industry": "Information & Communications", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 7350, "p25_gross_wage_sgd": 5350, "p75_gross_wage_sgd": 10200},
+      {"year": 2024, "industry": "Financial & Insurance Services", "role_level": "Industry Overall Median", "median_gross_wage_sgd": 7100, "p25_gross_wage_sgd": 5000, "p75_gross_wage_sgd": 10000},
+      {"year": 2024, "industry": "National All Sectors", "role_level": "National Median Resident", "median_gross_wage_sgd": 5350, "p25_gross_wage_sgd": 3300, "p75_gross_wage_sgd": 8100}
+    ]
+  }
+}

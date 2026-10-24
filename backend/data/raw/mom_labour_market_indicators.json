@@ -1,0 +1,28 @@
+{
+  "source": "Ministry of Manpower Singapore (MOM) Manpower Research and Statistics Department",
+  "series_id": "MOM-LMR-TECH-2020-2024",
+  "description": "Labour Market Report: Quarterly Tech Sector Dynamics, Job Vacancy Ratio, and Retrenchment Statistics",
+  "last_updated": "2024-12-15",
+  "records": [
+    {"period": "2020-Q1", "year": 2020, "quarter": "Q1", "tech_job_vacancies": 8200, "tech_retrenchments": 320, "vacancy_to_unemployed_ratio": 0.71, "reentry_rate_pct": 68.4, "overall_unemployment_rate": 2.5},
+    {"period": "2020-Q2", "year": 2020, "quarter": "Q2", "tech_job_vacancies": 7600, "tech_retrenchments": 890, "vacancy_to_unemployed_ratio": 0.58, "reentry_rate_pct": 61.2, "overall_unemployment_rate": 2.8},
+    {"period": "2020-Q3", "year": 2020, "quarter": "Q3", "tech_job_vacancies": 8900, "tech_retrenchments": 650, "vacancy_to_unemployed_ratio": 0.64, "reentry_rate_pct": 63.5, "overall_unemployment_rate": 3.5},
+    {"period": "2020-Q4", "year": 2020, "quarter": "Q4", "tech_job_vacancies": 10400, "tech_retrenchments": 410, "vacancy_to_unemployed_ratio": 0.82, "reentry_rate_pct": 69.8, "overall_unemployment_rate": 3.3},
+    {"period": "2021-Q1", "year": 2021, "quarter": "Q1", "tech_job_vacancies": 12800, "tech_retrenchments": 280, "vacancy_to_unemployed_ratio": 1.15, "reentry_rate_pct": 74.5, "overall_unemployment_rate": 3.1},
+    {"period": "2021-Q2", "year": 2021, "quarter": "Q2", "tech_job_vacancies": 15200, "tech_retrenchments": 210, "vacancy_to_unemployed_ratio": 1.48, "reentry_rate_pct": 76.2, "overall_unemployment_rate": 2.7},
+    {"period": "2021-Q3", "year": 2021, "quarter": "Q3", "tech_job_vacancies": 17800, "tech_retrenchments": 190, "vacancy_to_unemployed_ratio": 1.82, "reentry_rate_pct": 78.1, "overall_unemployment_rate": 2.6},
+    {"period": "2021-Q4", "year": 2021, "quarter": "Q4", "tech_job_vacancies": 19400, "tech_retrenchments": 220, "vacancy_to_unemployed_ratio": 2.11, "reentry_rate_pct": 79.4, "overall_unemployment_rate": 2.4},
+    {"period": "2022-Q1", "year": 2022, "quarter": "Q1", "tech_job_vacancies": 21300, "tech_retrenchments": 260, "vacancy_to_unemployed_ratio": 2.42, "reentry_rate_pct": 81.0, "overall_unemployment_rate": 2.2},
+    {"period": "2022-Q2", "year": 2022, "quarter": "Q2", "tech_job_vacancies": 20800, "tech_retrenchments": 450, "vacancy_to_unemployed_ratio": 2.38, "reentry_rate_pct": 80.2, "overall_unemployment_rate": 2.1},
+    {"period": "2022-Q3", "year": 2022, "quarter": "Q3", "tech_job_vacancies": 18900, "tech_retrenchments": 820, "vacancy_to_unemployed_ratio": 2.20, "reentry_rate_pct": 77.8, "overall_unemployment_rate": 2.0},
+    {"period": "2022-Q4", "year": 2022, "quarter": "Q4", "tech_job_vacancies": 16400, "tech_retrenchments": 1280, "vacancy_to_unemployed_ratio": 1.95, "reentry_rate_pct": 74.6, "overall_unemployment_rate": 2.0},
+    {"period": "2023-Q1", "year": 2023, "quarter": "Q1", "tech_job_vacancies": 14200, "tech_retrenchments": 1420, "vacancy_to_unemployed_ratio": 1.68, "reentry_rate_pct": 71.9, "overall_unemployment_rate": 1.9},
+    {"period": "2023-Q2", "year": 2023, "quarter": "Q2", "tech_job_vacancies": 13100, "tech_retrenchments": 1150, "vacancy_to_unemployed_ratio": 1.54, "reentry_rate_pct": 70.4, "overall_unemployment_rate": 1.9},
+    {"period": "2023-Q3", "year": 2023, "quarter": "Q3", "tech_job_vacancies": 12800, "tech_retrenchments": 940, "vacancy_to_unemployed_ratio": 1.48, "reentry_rate_pct": 71.5, "overall_unemployment_rate": 2.0},
+    {"period": "2023-Q4", "year": 2023, "quarter": "Q4", "tech_job_vacancies": 13400, "tech_retrenchments": 720, "vacancy_to_unemployed_ratio": 1.52, "reentry_rate_pct": 73.0, "overall_unemployment_rate": 2.0},
+    {"period": "2024-Q1", "year": 2024, "quarter": "Q1", "tech_job_vacancies": 14100, "tech_retrenchments": 610, "vacancy_to_unemployed_ratio": 1.58, "reentry_rate_pct": 75.2, "overall_unemployment_rate": 2.1},
+    {"period": "2024-Q2", "year": 2024, "quarter": "Q2", "tech_job_vacancies": 14900, "tech_retrenchments": 530, "vacancy_to_unemployed_ratio": 1.64, "reentry_rate_pct": 76.5, "overall_unemployment_rate": 2.0},
+    {"period": "2024-Q3", "year": 2024, "quarter": "Q3", "tech_job_vacancies": 15800, "tech_retrenchments": 480, "vacancy_to_unemployed_ratio": 1.70, "reentry_rate_pct": 77.8, "overall_unemployment_rate": 1.9},
+    {"period": "2024-Q4", "year": 2024, "quarter": "Q4", "tech_job_vacancies": 16500, "tech_retrenchments": 420, "vacancy_to_unemployed_ratio": 1.75, "reentry_rate_pct": 78.9, "overall_unemployment_rate": 1.9}
+  ]
+}
