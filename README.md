@@ -282,3 +282,8 @@ It covers:
 - Counterfactual policy micro-simulations (Double Machine Learning)
 - Semantic vector caching for up to 78% cloud cost optimization
 
+---
+
+## 📄 License & Attribution
+
+Built for the **IMDA / GovTech Singapore Technical Assessment**. Authoritative data models reflect official taxonomy and data structures published by the Singapore Department of Statistics (DOS), Ministry of Manpower (MOM), and GovTech Singapore.

@@ -51,6 +51,15 @@ class DBAgentLog(Base):
     session = relationship("DBAnalysisSession", back_populates="logs")
 
 def init_db():
+    if "sqlite" in settings.DATABASE_URL:
+        # Ensure parent directory exists for SQLite database file
+        db_path = settings.DATABASE_URL.replace("sqlite:////", "/").replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            try:
+                os.makedirs(db_dir, exist_ok=True)
+            except Exception:
+                pass
     Base.metadata.create_all(bind=engine)
 
 def get_db():

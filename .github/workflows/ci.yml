@@ -79,3 +79,11 @@ jobs:
           file: backend/Dockerfile
           push: false
           tags: govpolicy-backend:latest
+
+      - name: Build Frontend Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          tags: govpolicy-frontend:latest
