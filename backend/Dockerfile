@@ -1,9 +1,24 @@
-# Multi-stage production Dockerfile for FastAPI Multi-Agent Backend
-FROM python:3.11-slim AS builder
+# ==============================================================================
+# Unified Production Multi-Stage Dockerfile for GovPolicy AI Platform
+# Stage 1: Build React/Vite Frontend
+# Stage 2: Install Python dependencies
+# Stage 3: Assemble lightweight, secure, non-root runtime container
+# ==============================================================================
 
+# --- Stage 1: Build Frontend ---
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
+
+COPY frontend/package.json ./
+RUN npm install
+
+COPY frontend/ ./
+RUN npm run build
+
+# --- Stage 2: Python Dependencies ---
+FROM python:3.11-slim AS python-builder
 WORKDIR /build
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -11,30 +26,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt requirements.txt
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Final runtime image
+# --- Stage 3: Final Production Runtime ---
 FROM python:3.11-slim AS runtime
-
 WORKDIR /app
 
-# Install curl in runtime for docker healthchecks & debugging
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root system user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Copy installed packages from builder
-COPY --from=builder /root/.local /home/appuser/.local
+# Copy installed Python packages
+COPY --from=python-builder /root/.local /home/appuser/.local
 ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONPATH=/app
+ENV ENVIRONMENT=production
+ENV DEBUG=false
 
-# Create required directories with correct permissions for non-root user
-RUN mkdir -p /app/backend/data/raw /app/data && chown -R appuser:appuser /app
+# Copy compiled frontend SPA
+COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
-# Copy application source & pre-packaged Singapore datasets
+# Copy backend application and datasets
 COPY backend /app/backend
-RUN chown -R appuser:appuser /app
+
+# Create runtime directories & assign ownership to appuser
+RUN mkdir -p /app/backend/data/raw /app/data && chown -R appuser:appuser /app
 
 USER appuser
 
@@ -43,4 +59,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=20s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/api/v1/status || exit 1
 
-CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "backend/run.py"]
