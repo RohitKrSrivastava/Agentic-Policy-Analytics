@@ -14,5 +14,6 @@ scikit-learn>=1.5.0
 reportlab>=4.2.0
 pillow>=10.4.0
 pytest>=8.3.0
+pytest-asyncio>=0.24.0
 python-multipart>=0.0.9
 python-dotenv>=1.0.1
