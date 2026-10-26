@@ -1,7 +1,9 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
+
 
 class AgentType(str, Enum):
     COORDINATOR = "Data Coordinator Agent"
@@ -33,9 +35,9 @@ class AgentStepLog(BaseModel):
     step_type: StepType
     title: str
     content: str
-    tool_name: Optional[str] = None
-    tool_input: Optional[Dict[str, Any]] = None
-    tool_output: Optional[Dict[str, Any]] = None
+    tool_name: str | None = None
+    tool_input: dict[str, Any] | None = None
+    tool_output: dict[str, Any] | None = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class DataQualityItem(BaseModel):
@@ -46,21 +48,21 @@ class DataQualityItem(BaseModel):
     outliers_identified: int
     completeness_score: float # 0.0 to 100.0%
     data_format: str
-    cleaning_applied: List[str] = []
+    cleaning_applied: list[str] = []
 
 class ChartSeriesItem(BaseModel):
     name: str
-    data: List[Dict[str, Any]]
+    data: list[dict[str, Any]]
 
 class ChartSpecification(BaseModel):
     chart_id: str
     title: str
     chart_type: str # 'line', 'bar', 'composed', 'area'
     x_key: str
-    y_keys: List[str]
-    series: List[Dict[str, Any]]
-    y_axis_label: Optional[str] = None
-    annotations: Optional[List[str]] = []
+    y_keys: list[str]
+    series: list[dict[str, Any]]
+    y_axis_label: str | None = None
+    annotations: list[str] | None = []
 
 class PolicyCitation(BaseModel):
     source_agency: str
@@ -81,19 +83,19 @@ class PolicyReport(BaseModel):
     query: str
     title: str
     executive_summary: str
-    key_findings: List[PolicyFinding]
-    statistical_metrics: Dict[str, Any]
-    policy_recommendations: List[str]
-    citations: List[PolicyCitation]
+    key_findings: list[PolicyFinding]
+    statistical_metrics: dict[str, Any]
+    policy_recommendations: list[str]
+    citations: list[PolicyCitation]
     quality_score: float
     hallucination_score: float # 0 to 1.0 (lower is better; factual fidelity)
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class QueryRequest(BaseModel):
     query: str = Field(..., example="Analyse employment trends in the technology sector from 2020-2024")
-    provider_preference: Optional[str] = Field("auto", example="auto") # auto, openai, gemini, bedrock, local_fallback
-    include_forecasting: Optional[bool] = True
-    deep_verification: Optional[bool] = True
+    provider_preference: str | None = Field("auto", example="auto") # auto, openai, gemini, bedrock, local_fallback
+    include_forecasting: bool | None = True
+    deep_verification: bool | None = True
 
 class SessionResponse(BaseModel):
     session_id: str
@@ -101,16 +103,16 @@ class SessionResponse(BaseModel):
     status: SessionStatus
     created_at: datetime
     updated_at: datetime
-    current_agent: Optional[str] = None
-    current_step: Optional[str] = None
+    current_agent: str | None = None
+    current_step: str | None = None
     progress_pct: int = 0
-    logs: List[AgentStepLog] = []
-    charts: List[ChartSpecification] = []
-    quality_reports: List[DataQualityItem] = []
-    report: Optional[PolicyReport] = None
-    error_message: Optional[str] = None
-    llm_provider_used: Optional[str] = None
-    tokens_consumed: Optional[int] = 0
+    logs: list[AgentStepLog] = []
+    charts: list[ChartSpecification] = []
+    quality_reports: list[DataQualityItem] = []
+    report: PolicyReport | None = None
+    error_message: str | None = None
+    llm_provider_used: str | None = None
+    tokens_consumed: int | None = 0
 
 class ProviderHealth(BaseModel):
     provider_name: str
@@ -123,6 +125,6 @@ class ProviderHealth(BaseModel):
 class SystemHealthResponse(BaseModel):
     status: str
     timestamp: datetime
-    active_providers: List[ProviderHealth]
-    default_strategy: List[str]
+    active_providers: list[ProviderHealth]
+    default_strategy: list[str]
     total_analyses_run: int

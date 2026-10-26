@@ -1,13 +1,21 @@
-import uuid
-import asyncio
 import json
+import uuid
 from datetime import datetime
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
-from backend.app.core.database import get_db, DBAnalysisSession, DBAgentLog
-from backend.app.models.schemas import QueryRequest, SessionResponse, SessionStatus, AgentStepLog, PolicyReport, ChartSpecification, DataQualityItem
+
 from backend.app.agents.orchestrator import WorkflowOrchestrator
+from backend.app.core.database import DBAnalysisSession, get_db
+from backend.app.models.schemas import (
+    AgentStepLog,
+    ChartSpecification,
+    DataQualityItem,
+    PolicyReport,
+    QueryRequest,
+    SessionResponse,
+    SessionStatus,
+)
 
 router = APIRouter()
 
@@ -68,18 +76,18 @@ def get_analysis_session(session_id: str, db: Session = Depends(get_db)):
     # Parse logs
     logs = [
         AgentStepLog(
-            id=l.id,
-            session_id=l.session_id,
-            agent=l.agent,
-            step_type=l.step_type,
-            title=l.title,
-            content=l.content,
-            tool_name=l.tool_name,
-            tool_input=json.loads(l.tool_input_json) if l.tool_input_json else None,
-            tool_output=json.loads(l.tool_output_json) if l.tool_output_json else None,
-            timestamp=l.timestamp
+            id=entry.id,
+            session_id=entry.session_id,
+            agent=entry.agent,
+            step_type=entry.step_type,
+            title=entry.title,
+            content=entry.content,
+            tool_name=entry.tool_name,
+            tool_input=json.loads(entry.tool_input_json) if entry.tool_input_json else None,
+            tool_output=json.loads(entry.tool_output_json) if entry.tool_output_json else None,
+            timestamp=entry.timestamp
         )
-        for l in sess.logs
+        for entry in sess.logs
     ]
 
     return SessionResponse(
@@ -100,7 +108,7 @@ def get_analysis_session(session_id: str, db: Session = Depends(get_db)):
         tokens_consumed=sess.tokens_consumed
     )
 
-@router.get("", response_model=List[SessionResponse])
+@router.get("", response_model=list[SessionResponse])
 def list_analysis_sessions(limit: int = 20, db: Session = Depends(get_db)):
     """
     Returns history of research analyses for the history viewer.

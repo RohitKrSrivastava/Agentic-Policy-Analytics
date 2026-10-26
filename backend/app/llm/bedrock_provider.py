@@ -1,7 +1,9 @@
-import time
 import json
-from typing import Optional, Dict, Any
+import time
+from typing import Any
+
 from backend.app.llm.base import BaseLLMProvider, LLMResponse
+
 
 class BedrockProvider(BaseLLMProvider):
     def __init__(self, access_key: str, secret_key: str, region: str = "ap-southeast-1", model_id: str = "anthropic.claude-3-5-sonnet-20240620-v1:0"):
@@ -12,7 +14,7 @@ class BedrockProvider(BaseLLMProvider):
     async def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         json_mode: bool = False,
         max_tokens: int = 2000,
         temperature: float = 0.2
@@ -23,15 +25,14 @@ class BedrockProvider(BaseLLMProvider):
         # If boto3 is available and credentials are configured
         try:
             import boto3
-            import botocore
-            
+
             client = boto3.client(
                 service_name="bedrock-runtime",
                 region_name=self.region,
                 aws_access_key_id=self.api_key,
                 aws_secret_access_key=self.secret_key
             )
-            
+
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": max_tokens,
@@ -48,7 +49,7 @@ class BedrockProvider(BaseLLMProvider):
             )
             latency = (time.time() - start_time) * 1000.0
             response_body = json.loads(response["body"].read())
-            
+
             content = ""
             for item in response_body.get("content", []):
                 if item.get("type") == "text":
@@ -66,9 +67,9 @@ class BedrockProvider(BaseLLMProvider):
                 fallback_used=False
             )
         except Exception as e:
-            raise RuntimeError(f"AWS Bedrock Invocation Failed: {str(e)}")
+            raise RuntimeError(f"AWS Bedrock Invocation Failed: {e!s}")
 
-    async def check_health(self) -> Dict[str, Any]:
+    async def check_health(self) -> dict[str, Any]:
         if not self.api_key or self.api_key.startswith("AKIA-placeholder"):
             return {
                 "provider": self.name,

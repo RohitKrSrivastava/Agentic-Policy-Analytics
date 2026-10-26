@@ -1,8 +1,10 @@
+import math
 import os
 import re
-import math
-from typing import List, Dict, Any, Tuple
+from typing import Any
+
 from backend.app.config import settings
+
 
 class PolicyRAGRetriever:
     """
@@ -12,7 +14,7 @@ class PolicyRAGRetriever:
     """
     def __init__(self):
         self.docs_dir = settings.POLICY_DOCS_DIR
-        self.chunks: List[Dict[str, Any]] = []
+        self.chunks: list[dict[str, Any]] = []
         self._index_documents()
 
     def _index_documents(self):
@@ -43,12 +45,12 @@ class PolicyRAGRetriever:
                     "words": set(re.findall(r'\b\w+\b', sec_clean.lower()))
                 })
 
-    def retrieve(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+    def retrieve(self, query: str, top_k: int = 3) -> list[dict[str, Any]]:
         if not self.chunks:
             self._index_documents()
 
         query_words = set(re.findall(r'\b\w+\b', query.lower()))
-        scored_chunks: List[Tuple[float, Dict[str, Any]]] = []
+        scored_chunks: list[tuple[float, dict[str, Any]]] = []
 
         for chunk in self.chunks:
             overlap = len(query_words.intersection(chunk["words"]))

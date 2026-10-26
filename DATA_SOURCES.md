@@ -2,21 +2,21 @@
 
 **Repository**: [https://github.com/RohitKrSrivastava/agentic-policy-analytics](https://github.com/RohitKrSrivastava/agentic-policy-analytics)
 
-This document provides exhaustive documentation on the Singapore Government data sources integrated into the **Agentic Policy Data Analytics Platform**, covering API protocols, formats, schema definitions, cleansing transformations, and the resilient dual mock/live architecture.
+This document provides exhaustive documentation on the Singapore Government data sources integrated into the **Agentic Policy Data Analytics Platform**, covering API protocols, formats, schema definitions, cleansing transformations, explicit provenance disclosures, and the dual mock/live architecture.
 
 ---
 
-## 1. Integrated Government Data Repositories
+## 1. Provenance & Benchmark Transparency Disclosure
 
-The platform integrates **four official Singapore public sector sources** across four heterogeneous formats:
+Pursuant to the assignment guidelines allowing mock or simplified benchmark data, this section transparently documents the origin, methodology, and nature of every dataset utilized in the platform:
 
-| # | Data Source / Agency | Official Dataset Name | Format | Ingestion Cadence | Primary Entity Key |
-|---|----------------------|-----------------------|--------|-------------------|--------------------|
-| 1 | **Department of Statistics (DOS SingStat)** | Table 14.1 Employment in Information & Communications (M015661) | `CSV` | Quarterly | `year`, `quarter`, `sector` |
-| 2 | **Ministry of Manpower (MOM)** | Labour Market Report: Vacancies, Retrenchments & Re-entry Rates | `JSON` | Quarterly | `period` (`YYYY-QX`) |
-| 3 | **GovTech / Data.gov.sg** | Gross Monthly Income from Work by Industry & Role Level (`d_09b4dbcb30a84d4fb4e5f2cfbb3238bb`) | `REST API (JSON)` | Annual | `year`, `industry`, `role_level` |
-| 4 | **Ministry of Manpower (MOM)** | Labour Turnover Survey (Recruitment, Resignation & Net Turnover) | `Excel (.xlsx)` | Quarterly | `Year`, `Quarter`, `SSIC_Code` |
-| 5 | **Internal GovTech / IMDA Policy DB** | TeSA Talent Benchmarks, SME Grants & National AI Strategy 2.0 KPIs | `SQLite (.db)` | Annual / Milestone | `initiative_code`, `year` |
+| Dataset | Format | Origin & Provenance | Generation Method / Status |
+| :--- | :--- | :--- | :--- |
+| **DOS SingStat Table 14.1** | `CSV` | Based on historical Singapore Department of Statistics Infocomm employment series (2020-2024). | Cleaned historical snapshot calibrated against official published quarterly benchmarks. |
+| **MOM Labour Market Report** | `JSON` | Modeled after MOM quarterly labour market releases (job vacancies, retrenchments, 6-month re-entry rate). | Structured JSON snapshot capturing the 2022-2023 restructuring cycle and 2024 recovery. |
+| **Data.gov.sg Wages API** | `REST API / JSON` | Live GovTech Data.gov.sg API v2 (`datastore_search` endpoint), with local verified fallback snapshot. | Live REST API query validated via Pydantic schema (`DataGovSgWageRecord`). Falls back to offline snapshot if air-gapped or network-restricted. |
+| **MOM Labour Turnover Survey** | `Excel (.xlsx)` | Synthesized benchmark based on MOM sector recruitment and resignation rate distributions. | Programmatically generated via [`backend/data/seed_data.py`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/backend/data/seed_data.py) using `openpyxl`. |
+| **Internal Policy DB** | `SQLite (.db)` | Synthetic policy governance benchmark representing IMDA/MDDI TeSA and National AI Strategy 2.0 KPI targets. | Programmatically generated via [`backend/data/seed_data.py`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/backend/data/seed_data.py) in SQLite. |
 
 ---
 
@@ -52,7 +52,7 @@ The platform integrates **four official Singapore public sector sources** across
 - **Endpoint**: `https://data.gov.sg/api/action/datastore_search`
 - **Format**: RESTful JSON API with automatic local snapshot fallback.
 - **Location**: `backend/data/raw/datagovsg_wages_by_sector.json`
-- **Schema**:
+- **Schema Validation**: Enforced via `DataGovSgWageRecord` (Pydantic model):
   - `year` (`INTEGER`): Reference year (2020 - 2024).
   - `industry` (`STRING`): SSIC industry classification.
   - `role_level` (`STRING`): Occupation level (e.g., `Software Engineer & Developer`, `Data Scientist & AI Specialist`, `Cybersecurity Specialist`, `Industry Overall Median`, `National Median Resident`).
@@ -78,30 +78,31 @@ The platform integrates **four official Singapore public sector sources** across
 
 ---
 
-## 3. Data Cleansing & Quality Validation Pipeline
+## 3. Data Cleansing & Empirical Quality Assessment
 
 Every dataset processed by the **Data Extraction Agent** undergoes an automated four-stage quality verification pipeline implemented in [`backend/app/tools/data_quality.py`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/backend/app/tools/data_quality.py):
 
 ```mermaid
 flowchart LR
-    A[Raw Ingestion CSV/JSON/XLSX/API] --> B[Schema Standardization snake_case]
-    B --> C[Missing Value Imputation ffill + median]
-    C --> D[Outlier Capping 2.5 x IQR]
-    D --> E[Completeness Scoring 0-100%]
-    E --> F[DataQualityItem Audit Report]
+    A["Raw Ingestion (CSV/JSON/XLSX/API)"] --> B["Schema Standardization (snake_case)"]
+    B --> C["Missing Value Imputation (ffill + median)"]
+    C --> D["Outlier Capping (2.5 x IQR)"]
+    D --> E["Empirical Completeness Scoring (0-100%)"]
+    E --> F["DataQualityItem Audit Report"]
 ```
 
 1. **Schema Standardization**: Strips leading/trailing whitespaces, replaces special characters (`&` -> `and`), and normalizes column headers to uniform `snake_case`.
 2. **Missing Value Handling**: Detects `null`, `NaN`, and empty cells. For time-series metrics, applies forward-fill (`ffill`), followed by sector-specific median imputation.
 3. **Outlier Detection & Capping**: Calculates the 25th percentile ($Q_{25}$) and 75th percentile ($Q_{75}$). Numerical anomalies exceeding $[Q_{25} - 2.5 \times \text{IQR}, Q_{75} + 2.5 \times \text{IQR}]$ are softly capped rather than discarded, preserving time-series continuity without distorting linear regressions.
-4. **Audit Metric Emission**: Emits a `DataQualityItem` reporting before-and-after counts, completeness percentage, and cleaning actions applied, rendered directly in the frontend dashboard.
+4. **Empirical Completeness Measurement**: Completeness is computed directly as $\text{Completeness} = 100\% - (\text{Null Cells} / \text{Total Expected Cells} \times 100\%)$ without arbitrary mathematical clamping or floors, ensuring authentic reporting.
 
 ---
 
-## 4. Dual Live/Mock Architecture & Resilience
+## 4. Dual Live/Mock Architecture & Transparency
 
-To ensure 100% operational reliability during technical assessments, continuous integration (CI) test runs, and offline or air-gapped deployments:
+To ensure operational reliability during technical assessments, continuous integration (CI) test runs, and offline or air-gapped deployments:
 
 1. **Active Live Probe**: When querying Data.gov.sg, `GovernmentDataConnector` attempts an asynchronous HTTP call to `https://data.gov.sg/api/action/datastore_search` with a 4.0-second timeout.
-2. **Graceful Fallback**: If the network times out, rate-limits (HTTP 429), or returns a 5xx error, the connector automatically switches to the verified offline snapshot stored at `backend/data/raw/datagovsg_wages_by_sector.json`.
-3. **Audit Logged**: The provenance (`Live Endpoint` vs `Verified Snapshot`) is logged in the agent thought trace and included in the report citations for complete transparency.
+2. **Schema Ingestion Validation**: Records are validated against `DataGovSgWageRecord` before downstream consumption.
+3. **Graceful Fallback**: If the network times out, rate-limits (HTTP 429), or returns an error, the connector automatically switches to the verified offline snapshot stored at `backend/data/raw/datagovsg_wages_by_sector.json`.
+4. **Dynamic Citation Provenance**: The exact access method (`Live REST API` vs `Local Verified Snapshot (Cached Offline Data)`) is dynamically emitted into the agent observation trace and the final report citations.

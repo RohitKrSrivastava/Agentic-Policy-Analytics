@@ -1,14 +1,16 @@
-import uuid
 import logging
+import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Dict, Any, Optional, Callable
-from backend.app.models.schemas import AgentType, StepType, AgentStepLog
+from typing import Any
+
 from backend.app.core.websocket_manager import ws_manager
+from backend.app.models.schemas import AgentStepLog, AgentType, StepType
 
 logger = logging.getLogger("agent")
 
 class BaseAgent:
-    def __init__(self, agent_type: AgentType, session_id: str, log_callback: Optional[Callable] = None):
+    def __init__(self, agent_type: AgentType, session_id: str, log_callback: Callable | None = None):
         self.agent_type = agent_type
         self.session_id = session_id
         self.log_callback = log_callback
@@ -18,9 +20,9 @@ class BaseAgent:
         step_type: StepType,
         title: str,
         content: str,
-        tool_name: Optional[str] = None,
-        tool_input: Optional[Dict[str, Any]] = None,
-        tool_output: Optional[Dict[str, Any]] = None
+        tool_name: str | None = None,
+        tool_input: dict[str, Any] | None = None,
+        tool_output: dict[str, Any] | None = None
     ) -> AgentStepLog:
         """
         Emits a ReAct step (Thought, Action, Observation, Reflection)

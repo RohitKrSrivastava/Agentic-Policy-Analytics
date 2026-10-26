@@ -1,13 +1,14 @@
 import json
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
-from backend.app.models.schemas import SessionStatus, SessionResponse, AgentStepLog
+from typing import Any
+
+from backend.app.agents.analytics import AnalyticsAgent
 from backend.app.agents.coordinator import DataCoordinatorAgent
 from backend.app.agents.extractor import DataExtractionAgent
-from backend.app.agents.analytics import AnalyticsAgent
-from backend.app.core.database import SessionLocal, DBAnalysisSession, DBAgentLog
+from backend.app.core.database import DBAgentLog, DBAnalysisSession, SessionLocal
 from backend.app.core.websocket_manager import ws_manager
+from backend.app.models.schemas import AgentStepLog, SessionStatus
 
 logger = logging.getLogger("orchestrator")
 
@@ -47,14 +48,14 @@ class WorkflowOrchestrator:
         self,
         status: SessionStatus,
         progress_pct: int,
-        current_agent: Optional[str] = None,
-        current_step: Optional[str] = None,
-        charts: Optional[list] = None,
-        quality_reports: Optional[list] = None,
-        report: Optional[Any] = None,
-        provider_used: Optional[str] = None,
+        current_agent: str | None = None,
+        current_step: str | None = None,
+        charts: list | None = None,
+        quality_reports: list | None = None,
+        report: Any | None = None,
+        provider_used: str | None = None,
         tokens_added: int = 0,
-        error_message: Optional[str] = None
+        error_message: str | None = None
     ):
         db = SessionLocal()
         try:
@@ -114,25 +115,84 @@ class WorkflowOrchestrator:
 
             coordinator = DataCoordinatorAgent(self.session_id, self.log_step_db)
             plan_res = await coordinator.plan_research_workflow(query, provider_preference=provider_preference)
-            
+
             provider_used = plan_res.get("provider_used", "local_fallback")
             total_tokens = plan_res.get("tokens", 0)
 
-            # 2. Extraction & Data Quality Phase
+            # Handle out-of-scope domain query immediately with domain guardrail
+            if plan_res.get("is_out_of_scope"):
+                from backend.app.models.schemas import PolicyFinding, PolicyReport
+                guardrail_report = PolicyReport(
+                    session_id=self.session_id,
+                    query=query,
+                    title="Domain Guardrail Notice: Query Outside Singapore Policy Scope",
+                    executive_summary=f"{plan_res.get('rejection_reason')} {plan_res.get('suggestion')}",
+                    key_findings=[
+                        PolicyFinding(
+                            heading="Supported Data Repositories & Domain Scope",
+                            body="This platform is specialized for Singapore Whole-of-Government (WOG) manpower and economic analytics. Integrated repositories include: DOS SingStat (Employment), MOM (Vacancies & Retrenchments), Data.gov.sg (Wages), and IMDA Policy DB.",
+                            sentiment="neutral",
+                            statistical_evidence="Authoritative coverage: Singapore labor market and wage dynamics (2020-2024).",
+                            citation_id="SCOPE-GUARDRAIL"
+                        )
+                    ],
+                    statistical_metrics={},
+                    policy_recommendations=[
+                        "Select a supported Singapore sector: Information & Communications, Financial Services, Manufacturing, or Economy-wide.",
+                        "Query Singapore labor metrics: employment trends, vacancies-to-unemployed ratio, retrenchments, or wage premiums.",
+                        "Specify analysis periods within 2020-2024."
+                    ],
+                    citations=[],
+                    quality_score=100.0,
+                    hallucination_score=0.0
+                )
+
+                await self.update_session_state(
+                    status=SessionStatus.COMPLETED,
+                    progress_pct=100,
+                    current_agent="Data Coordinator Agent",
+                    current_step="Domain guardrail applied: query out of scope",
+                    charts=[],
+                    quality_reports=[],
+                    report=guardrail_report,
+                    provider_used=provider_used,
+                    tokens_added=total_tokens
+                )
+
+                await ws_manager.broadcast_to_session(self.session_id, {
+                    "type": "workflow_completed",
+                    "session_id": self.session_id,
+                    "charts": [],
+                    "quality_reports": [],
+                    "report": guardrail_report.model_dump(mode="json")
+                })
+                return
+
+            # 2. Extraction & Data Quality Phase (Parameterized by Coordinator Plan)
+            params = plan_res.get("parameters", {})
+            sector_name = params.get("sector", "Information & Communications")
+            start_yr = params.get("start_year", 2020)
+            end_yr = params.get("end_year", 2024)
+
             await self.update_session_state(
                 status=SessionStatus.EXTRACTING,
                 progress_pct=35,
                 current_agent="Data Extraction Agent",
-                current_step="Querying SingStat, MOM, and Data.gov.sg portals",
+                current_step=f"Extracting {sector_name} data ({start_yr}-{end_yr}) across SingStat, MOM, and Data.gov.sg",
                 provider_used=provider_used,
                 tokens_added=total_tokens
             )
 
             extractor = DataExtractionAgent(self.session_id, self.log_step_db)
-            extraction_res = await extractor.extract_all_sources()
-            
+            extraction_res = await extractor.extract_sources(
+                plan=plan_res.get("plan"),
+                parameters=params
+            )
+
             datasets = extraction_res["datasets"]
             quality_reports = extraction_res["quality_reports"]
+            provenance = extraction_res.get("provenance", {})
+            overall_quality = extraction_res.get("overall_quality_score", 98.0)
 
             # Save quality reports to DB & broadcast
             await self.update_session_state(
@@ -148,7 +208,10 @@ class WorkflowOrchestrator:
             analysis_res = await analytics_agent.perform_analysis_and_synthesis(
                 query=query,
                 datasets=datasets,
-                provider_preference=provider_preference
+                provider_preference=provider_preference,
+                provenance=provenance,
+                overall_quality_score=overall_quality,
+                parameters=params
             )
 
             final_report = analysis_res["report"]

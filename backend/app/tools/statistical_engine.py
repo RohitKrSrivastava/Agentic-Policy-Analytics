@@ -1,7 +1,10 @@
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List, Tuple
+
 from backend.app.models.schemas import ChartSpecification
+
 
 class StatisticalEngine:
     """
@@ -15,7 +18,7 @@ class StatisticalEngine:
             return 0.0
         return round(((end_val / start_val) ** (1.0 / periods) - 1.0) * 100.0, 2)
 
-    def analyze_employment_dynamics(self, singstat_records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def analyze_employment_dynamics(self, singstat_records: list[dict[str, Any]]) -> dict[str, Any]:
         df = pd.DataFrame(singstat_records)
         if df.empty:
             return {}
@@ -96,13 +99,13 @@ class StatisticalEngine:
             "chart": chart_spec
         }
 
-    def analyze_labour_market_tightness(self, mom_records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def analyze_labour_market_tightness(self, mom_records: list[dict[str, Any]]) -> dict[str, Any]:
         df = pd.DataFrame(mom_records)
         if df.empty:
             return {}
 
         df = df.sort_values(by=["year", "quarter"])
-        
+
         peak_vacancies = int(df["tech_job_vacancies"].max())
         peak_period = df.loc[df["tech_job_vacancies"].idxmax(), "period"]
         latest_vacancies = int(df.iloc[-1]["tech_job_vacancies"])
@@ -148,7 +151,7 @@ class StatisticalEngine:
             "chart": chart_spec
         }
 
-    def analyze_wages_and_premium(self, wage_records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def analyze_wages_and_premium(self, wage_records: list[dict[str, Any]]) -> dict[str, Any]:
         df = pd.DataFrame(wage_records)
         if df.empty:
             return {}

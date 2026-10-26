@@ -1,14 +1,16 @@
-import os
 import logging
+import os
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from backend.app.api.router import api_router
 from backend.app.config import settings
 from backend.app.core.database import init_db
 from backend.app.core.websocket_manager import ws_manager
-from backend.app.api.router import api_router
 
 # Configure clean logging
 logging.basicConfig(
