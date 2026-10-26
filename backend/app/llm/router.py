@@ -1,11 +1,11 @@
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+
 from backend.app.config import settings
 from backend.app.llm.base import BaseLLMProvider, LLMResponse
-from backend.app.llm.openai_provider import OpenAIProvider
-from backend.app.llm.gemini_provider import GeminiProvider
 from backend.app.llm.bedrock_provider import BedrockProvider
+from backend.app.llm.gemini_provider import GeminiProvider
 from backend.app.llm.local_fallback import LocalDeterministicFallbackProvider
+from backend.app.llm.openai_provider import OpenAIProvider
 from backend.app.models.schemas import ProviderHealth
 
 logger = logging.getLogger("llm_router")
@@ -16,7 +16,7 @@ class MultiCloudLLMRouter:
     Supports OpenAI, Google Cloud Gemini, AWS Bedrock, and an air-gapped deterministic engine.
     """
     def __init__(self):
-        self.providers: Dict[str, BaseLLMProvider] = {
+        self.providers: dict[str, BaseLLMProvider] = {
             "openai": OpenAIProvider(api_key=settings.OPENAI_API_KEY, model_name=settings.OPENAI_MODEL),
             "gemini": GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.GEMINI_MODEL),
             "bedrock": BedrockProvider(
@@ -32,18 +32,18 @@ class MultiCloudLLMRouter:
     async def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         json_mode: bool = False,
         preferred_provider: str = "auto",
         max_tokens: int = 2000,
         temperature: float = 0.2
-    ) -> Tuple[LLMResponse, List[str]]:
+    ) -> tuple[LLMResponse, list[str]]:
         """
         Executes generation with automatic failover.
         Returns: (LLMResponse, list_of_attempted_providers)
         """
-        attempted_providers: List[str] = []
-        
+        attempted_providers: list[str] = []
+
         # Determine execution queue
         if preferred_provider != "auto" and preferred_provider in self.providers:
             # User specifically requested this provider first, then follow default fallback
@@ -51,7 +51,7 @@ class MultiCloudLLMRouter:
         else:
             execution_order = list(self.priority_order)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for provider_name in execution_order:
             provider = self.providers.get(provider_name)
@@ -68,7 +68,7 @@ class MultiCloudLLMRouter:
                     max_tokens=max_tokens,
                     temperature=temperature
                 )
-                
+
                 # Mark whether fallback was required
                 if len(attempted_providers) > 1:
                     response.fallback_used = True
@@ -80,15 +80,15 @@ class MultiCloudLLMRouter:
                 continue
 
         # If all registered providers somehow failed, local fallback guarantee
-        logger.error(f"All configured providers failed. Invoking hardwired safety fallback.")
+        logger.error("All configured providers failed. Invoking hardwired safety fallback.")
         emergency_fallback = self.providers["local_fallback"]
         attempted_providers.append("local_fallback")
         res = await emergency_fallback.generate(prompt=prompt, system_prompt=system_prompt, json_mode=json_mode)
         res.fallback_used = True
         return res, attempted_providers
 
-    async def get_providers_health(self) -> List[ProviderHealth]:
-        health_list: List[ProviderHealth] = []
+    async def get_providers_health(self) -> list[ProviderHealth]:
+        health_list: list[ProviderHealth] = []
         for name, provider in self.providers.items():
             try:
                 h = await provider.check_health()
@@ -103,7 +103,7 @@ class MultiCloudLLMRouter:
                     cost_per_1k_tokens=cost,
                     is_fallback_available=True
                 ))
-            except Exception as e:
+            except Exception:
                 health_list.append(ProviderHealth(
                     provider_name=name,
                     status="error",

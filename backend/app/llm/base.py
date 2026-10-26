@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any
+
 from pydantic import BaseModel
-from datetime import datetime
+
 
 class LLMResponse(BaseModel):
     content: str
@@ -12,7 +13,7 @@ class LLMResponse(BaseModel):
     total_tokens: int = 0
     latency_ms: float = 0.0
     fallback_used: bool = False
-    raw_response: Optional[Dict[str, Any]] = None
+    raw_response: dict[str, Any] | None = None
 
 class BaseLLMProvider(ABC):
     def __init__(self, name: str, model_name: str, api_key: str = ""):
@@ -24,7 +25,7 @@ class BaseLLMProvider(ABC):
     async def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         json_mode: bool = False,
         max_tokens: int = 2000,
         temperature: float = 0.2
@@ -32,11 +33,9 @@ class BaseLLMProvider(ABC):
         """
         Execute completion with the specified LLM provider.
         """
-        pass
 
     @abstractmethod
-    async def check_health(self) -> Dict[str, Any]:
+    async def check_health(self) -> dict[str, Any]:
         """
         Return status check (online, unconfigured, simulated, error) and latency.
         """
-        pass

@@ -45,3 +45,22 @@ def test_data_quality_outlier_treatment():
     assert report.outliers_identified >= 1
     # Check capped value
     assert cleaned[-1]["metric"] < 900.0
+
+def test_data_quality_empirical_completeness_no_artificial_floor():
+    # Verify that completeness is measured accurately and not clamped to arbitrary 92.0% floor
+    dirty_data = [
+        {"val": 10.0},
+        {"val": None},
+        {"val": None},
+        {"val": 20.0}
+    ]
+    cleaned, report = quality_engine.audit_and_clean(
+        data=dirty_data,
+        dataset_name="Dirty Test Series",
+        source_type="Test Source",
+        data_format="JSON",
+        numeric_columns=["val"]
+    )
+    # 2 out of 4 missing cells = exactly 50.0% completeness
+    assert report.missing_values_handled == 2
+    assert report.completeness_score == 50.0

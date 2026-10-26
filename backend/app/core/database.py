@@ -1,8 +1,17 @@
 import os
-import json
 from datetime import datetime
-from sqlalchemy import create_engine, Column, String, Integer, Float, Text, DateTime, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+)
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
 from backend.app.config import settings
 
 # Engine setup with thread-safe settings for SQLite
@@ -26,7 +35,7 @@ class DBAnalysisSession(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     error_message = Column(Text, nullable=True)
-    
+
     # Store JSON payloads for complex nested structures (charts, quality, report)
     charts_json = Column(Text, default="[]")
     quality_json = Column(Text, default="[]")

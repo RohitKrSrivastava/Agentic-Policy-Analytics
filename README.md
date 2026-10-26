@@ -5,8 +5,8 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 18](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg)](https://www.typescriptlang.org/)
-[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-84%25-brightgreen.svg)](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/TESTING.md)
-[![Hallucination Risk](https://img.shields.io/badge/Hallucination%20Risk-0.00%20(Certified)-purple.svg)](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/backend/app/evaluation/hallucination_guard.py)
+[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-83%25-brightgreen.svg)](TESTING.md)
+[![Factuality Audit](https://img.shields.io/badge/Factuality%20Audit-Grounded-blue.svg)](TESTING.md)
 
 An enterprise-grade, production-ready Full-Stack Agentic Solution designed for public policy researchers, economists, and government analysts. The platform automates the extraction, quality auditing, econometric modeling, and policy synthesis of heterogeneous datasets across **DOS SingStat**, **Ministry of Manpower (MOM)**, **Data.gov.sg**, and internal government databases.
 
@@ -14,14 +14,15 @@ An enterprise-grade, production-ready Full-Stack Agentic Solution designed for p
 
 ## 🌟 Key Highlights & Engineering Features
 
-- **Autonomous Multi-Agent ReAct System**: Implements 3 specialized collaborating agents (**Data Coordinator**, **Data Extraction**, **Analytics**) and a deterministic **Hallucination Verification Guard** with live streaming of reasoning thoughts, actions, and observations over WebSockets.
-- **Heterogeneous Singapore Government Integration**: Ingests and standardizes data across **4 distinct formats**: CSV (SingStat Table 14.1), JSON (MOM Labour Market Report), REST API (Data.gov.sg v2), and Excel `.xlsx` (MOM Labour Turnover Survey), plus an internal SQLite policy database.
-- **Automated Data Quality & Cleansing Engine**: Employs snake_case normalization, missing value forward-fill & median imputation, $2.5 \times \text{IQR}$ statistical outlier capping, and automated completeness scoring (99.4% average completeness).
-- **Multi-Cloud LLM Failover**: Resilient multi-cloud router supporting **OpenAI (GPT-4o-mini)**, **Google Cloud Gemini (1.5 Flash)**, **AWS Bedrock (Claude 3.5 Sonnet)**, and an **Air-Gapped Deterministic Heuristic Engine** guaranteeing 100% uptime even when external API keys are unconfigured.
-- **Factual Accuracy & Hallucination Elimination**: Automated regular-expression token auditing cross-checks every numerical claim against underlying Pandas ground-truth DataFrames, certifying **0.00 Hallucination Risk**.
+- **Autonomous Multi-Agent ReAct System**: Implements 3 specialized collaborating agents (**Data Coordinator**, **Data Extraction**, **Analytics**) and a source-grounded **Hallucination Verification Guard** with live streaming of reasoning thoughts, actions, and observations over WebSockets.
+- **Domain Guardrails & Query Interpretation**: Coordinator intelligently validates geographic scope (Singapore public sector) and domain boundaries, rejecting out-of-scope requests (e.g. non-Singapore queries, general weather) with helpful policy guidance rather than hallucinating unrelated reports.
+- **Heterogeneous Singapore Government Integration**: Ingests and standardizes data across **4 distinct formats**: CSV (SingStat Table 14.1), JSON (MOM Labour Market Report), REST API (Data.gov.sg v2 with Pydantic schema validation), and Excel `.xlsx` (MOM Labour Turnover Survey), plus an internal SQLite policy database.
+- **Automated Data Quality & Cleansing Engine**: Employs snake_case normalization, missing value forward-fill & median imputation, $2.5 \times \text{IQR}$ statistical outlier capping, and empirical completeness assessment directly measured without artificial floors.
+- **Multi-Cloud LLM Failover**: Resilient multi-cloud router supporting **OpenAI (GPT-4o-mini)**, **Google Cloud Gemini (1.5 Flash)**, **AWS Bedrock (Claude 3.5 Sonnet via boto3)**, and a **Local Deterministic Fallback Engine** providing robust offline execution.
+- **Grounded Factuality & Discrepancy Auditing**: Numerical value verification cross-checks quantitative statements against underlying Pandas source records and econometric metrics, populating discrepancies when ungrounded claims or fabrications occur.
 - **Interactive Visual Dashboard**: Dynamic Recharts dashboards showing Infocomm employment trajectories, 2025 projection cones, vacancy-to-unemployment tightness ratios, and wage premium comparisons.
 - **Export & Audit Suite**: 1-click downloads for formatted Markdown briefs, raw JSON data bundles, and binary PDF reports generated via `ReportLab`.
-- **Comprehensive Testing Suite**: **27 automated tests passing in ~6 seconds** with **84% backend test coverage** across unit, integration, multi-cloud fallback, hallucination detection, and concurrent load tests.
+- **Comprehensive Testing Suite**: **33 automated tests passing in ~11 seconds** with **83% backend test coverage** across unit, integration, query guardrails, multi-cloud fallback, adversarial hallucination detection, and performance benchmarks.
 
 ---
 

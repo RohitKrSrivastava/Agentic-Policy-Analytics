@@ -1,8 +1,10 @@
 import time
-import json
+from typing import Any
+
 import httpx
-from typing import Optional, Dict, Any
+
 from backend.app.llm.base import BaseLLMProvider, LLMResponse
+
 
 class OpenAIProvider(BaseLLMProvider):
     def __init__(self, api_key: str, model_name: str = "gpt-4o-mini"):
@@ -12,7 +14,7 @@ class OpenAIProvider(BaseLLMProvider):
     async def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         json_mode: bool = False,
         max_tokens: int = 2000,
         temperature: float = 0.2
@@ -24,13 +26,13 @@ class OpenAIProvider(BaseLLMProvider):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
-        
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.model_name,
             "messages": messages,
             "max_tokens": max_tokens,
@@ -44,10 +46,10 @@ class OpenAIProvider(BaseLLMProvider):
             resp = await client.post(self.endpoint, headers=headers, json=payload)
             if resp.status_code != 200:
                 raise RuntimeError(f"OpenAI API Error {resp.status_code}: {resp.text}")
-            
+
             data = resp.json()
             latency = (time.time() - start_time) * 1000.0
-            
+
             choice = data["choices"][0]
             content = choice["message"]["content"]
             usage = data.get("usage", {})
@@ -64,7 +66,7 @@ class OpenAIProvider(BaseLLMProvider):
                 raw_response=data
             )
 
-    async def check_health(self) -> Dict[str, Any]:
+    async def check_health(self) -> dict[str, Any]:
         if not self.api_key or self.api_key.startswith("sk-placeholder"):
             return {
                 "provider": self.name,

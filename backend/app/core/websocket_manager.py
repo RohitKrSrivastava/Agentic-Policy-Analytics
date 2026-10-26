@@ -1,7 +1,8 @@
 import asyncio
 import json
 import logging
-from typing import Dict, List, Set, Any
+from typing import Any
+
 from fastapi import WebSocket
 
 logger = logging.getLogger("websocket_manager")
@@ -14,9 +15,9 @@ class ConnectionManager:
     """
     def __init__(self):
         # Maps session_id to set of active WebSockets
-        self.active_sessions: Dict[str, Set[WebSocket]] = {}
+        self.active_sessions: dict[str, set[WebSocket]] = {}
         # Global listeners (e.g. admin monitoring or activity dashboard)
-        self.global_listeners: Set[WebSocket] = set()
+        self.global_listeners: set[WebSocket] = set()
         self._lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket, session_id: str):
@@ -42,7 +43,7 @@ class ConnectionManager:
             self.global_listeners.discard(websocket)
             logger.info(f"WebSocket client disconnected from session: {session_id}")
 
-    async def broadcast_to_session(self, session_id: str, message: Dict[str, Any]):
+    async def broadcast_to_session(self, session_id: str, message: dict[str, Any]):
         """
         Broadcasts message to all clients subscribed to a given session_id.
         """

@@ -1,13 +1,15 @@
 import io
 import json
+
 from fastapi import APIRouter, Depends, HTTPException, Response
-from fastapi.responses import StreamingResponse, PlainTextResponse
-from sqlalchemy.orm import Session
-from reportlab.lib.pagesizes import letter
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from backend.app.core.database import get_db, DBAnalysisSession
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from sqlalchemy.orm import Session
+
+from backend.app.core.database import DBAnalysisSession, get_db
 
 router = APIRouter()
 
@@ -18,7 +20,7 @@ def export_markdown_report(session_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Report not generated for this session.")
 
     report = json.loads(sess.report_json)
-    
+
     md_lines = [
         f"# {report.get('title', 'Singapore Policy Analytics Report')}",
         f"**Generated**: {report.get('generated_at', '')} | **Session ID**: `{session_id}`",

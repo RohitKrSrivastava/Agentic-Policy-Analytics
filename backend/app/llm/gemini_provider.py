@@ -1,8 +1,10 @@
 import time
-import json
+from typing import Any
+
 import httpx
-from typing import Optional, Dict, Any
+
 from backend.app.llm.base import BaseLLMProvider, LLMResponse
+
 
 class GeminiProvider(BaseLLMProvider):
     def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash"):
@@ -12,7 +14,7 @@ class GeminiProvider(BaseLLMProvider):
     async def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         json_mode: bool = False,
         max_tokens: int = 2000,
         temperature: float = 0.2
@@ -21,7 +23,7 @@ class GeminiProvider(BaseLLMProvider):
             raise ValueError("Google Gemini API key not provided or unconfigured.")
 
         endpoint = f"{self.base_url}/{self.model_name}:generateContent?key={self.api_key}"
-        
+
         contents = []
         if system_prompt:
             contents.append({
@@ -38,7 +40,7 @@ class GeminiProvider(BaseLLMProvider):
             "parts": [{"text": prompt}]
         })
 
-        generation_config: Dict[str, Any] = {
+        generation_config: dict[str, Any] = {
             "temperature": temperature,
             "maxOutputTokens": max_tokens,
         }
@@ -81,7 +83,7 @@ class GeminiProvider(BaseLLMProvider):
                 raw_response=data
             )
 
-    async def check_health(self) -> Dict[str, Any]:
+    async def check_health(self) -> dict[str, Any]:
         if not self.api_key or self.api_key.startswith("AIzaSy-placeholder"):
             return {
                 "provider": self.name,

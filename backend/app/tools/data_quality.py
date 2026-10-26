@@ -1,7 +1,9 @@
+from typing import Any
+
 import pandas as pd
-import numpy as np
-from typing import Dict, Any, List, Tuple
+
 from backend.app.models.schemas import DataQualityItem
+
 
 class DataQualityEngine:
     """
@@ -11,12 +13,12 @@ class DataQualityEngine:
     """
     @staticmethod
     def audit_and_clean(
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         dataset_name: str,
         source_type: str,
         data_format: str,
-        numeric_columns: List[str]
-    ) -> Tuple[List[Dict[str, Any]], DataQualityItem]:
+        numeric_columns: list[str]
+    ) -> tuple[list[dict[str, Any]], DataQualityItem]:
         if not data:
             return [], DataQualityItem(
                 dataset_name=dataset_name,
@@ -31,7 +33,7 @@ class DataQualityEngine:
 
         df = pd.DataFrame(data)
         total_records = len(df)
-        cleaning_steps: List[str] = []
+        cleaning_steps: list[str] = []
 
         # 1. Column standardization (lowercase, strip whitespace, snake_case)
         orig_cols = list(df.columns)
@@ -44,7 +46,7 @@ class DataQualityEngine:
 
         # 2. Count missing values
         missing_count = int(df[normalized_numeric].isnull().sum().sum())
-        
+
         # 3. Missing Value Handling (Forward Fill for Time Series, Median for Numerical)
         if missing_count > 0:
             for num_col in normalized_numeric:
@@ -63,7 +65,7 @@ class DataQualityEngine:
             iqr = q75 - q25
             lower_bound = q25 - 2.5 * iqr
             upper_bound = q75 + 2.5 * iqr
-            
+
             anomalies = df[(df[num_col] < lower_bound) | (df[num_col] > upper_bound)]
             if not anomalies.empty:
                 outliers_detected += len(anomalies)
@@ -71,9 +73,9 @@ class DataQualityEngine:
                 df[num_col] = df[num_col].clip(lower=lower_bound, upper=upper_bound)
                 cleaning_steps.append(f"Treated {len(anomalies)} statistical anomalies in '{num_col}' via IQR bounds capping.")
 
-        # 5. Calculate Completeness Score
-        completeness_pct = round(100.0 - (missing_count / (total_records * max(len(normalized_numeric), 1)) * 100.0), 2)
-        completeness_pct = max(min(completeness_pct, 100.0), 92.0) # Singapore official stats typically exceed 95%
+        # 5. Calculate Empirical Completeness Score (measured directly, zero artificial floors)
+        total_expected_cells = total_records * max(len(normalized_numeric), 1)
+        completeness_pct = round(max(0.0, min(100.0, 100.0 - (missing_count / total_expected_cells * 100.0))), 2)
 
         quality_report = DataQualityItem(
             dataset_name=dataset_name,
