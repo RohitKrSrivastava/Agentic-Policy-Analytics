@@ -145,3 +145,27 @@ jobs:
               assert 'dockerfilePath: ./backend/Dockerfile' in content
           print('Render deployment manifest verified successfully.')
           "
+
+  deploy-production:
+    name: Production Deployment (Main Only)
+    runs-on: ubuntu-latest
+    needs: [container-check, deployment-validation]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Trigger Render Production Deployment
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          echo "Production deployment gate reached for branch 'main'."
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render Production Deploy Webhook..."
+            curl -s -f -X POST "$RENDER_DEPLOY_HOOK" || (echo "Deployment hook invocation failed" && exit 1)
+            echo "Deployment webhook triggered successfully."
+          else
+            echo "RENDER_DEPLOY_HOOK secret is not configured in repository."
+            echo "Render will auto-deploy the latest commit directly from the 'main' branch via Git push integration."
+          fi
