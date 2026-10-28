@@ -7,6 +7,9 @@
     "url": "https://github.com/RohitKrSrivastava/agentic-policy-analytics.git"
   },
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
