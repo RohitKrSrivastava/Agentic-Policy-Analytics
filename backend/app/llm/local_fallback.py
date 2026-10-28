@@ -215,6 +215,34 @@ class LocalDeterministicFallbackProvider(BaseLLMProvider):
             }
             content = json.dumps(repaired_obj, indent=2) if json_mode else repaired_obj["executive_summary"]
 
+        # 0c. LLM-Driven Autonomous Replanning Response
+        elif "coverage gap" in p_lower and ("recovery" in p_lower or "replan" in p_lower or "substitute" in p_lower):
+            if "singstat" in p_lower:
+                replan_obj = {
+                    "thought": "Requested sector employment records returned 0 matching records in SingStat. Recovering by substituting 'Overall Economy' as macroeconomic baseline proxy.",
+                    "action": "switch_sector",
+                    "substituted_sector": "Overall Economy",
+                    "substituted_years": {"start_year": 2020, "end_year": 2024},
+                    "remediation_summary": "Substituted 'Overall Economy' macroeconomic baseline for missing sector records."
+                }
+            elif "mom" in p_lower:
+                replan_obj = {
+                    "thought": "MOM quarterly indicator records were unavailable for the requested window. Widening observation window to authoritative 2020-2024 baseline.",
+                    "action": "widen_window",
+                    "substituted_sector": None,
+                    "substituted_years": {"start_year": 2020, "end_year": 2024},
+                    "remediation_summary": "Widened observation window to authoritative 2020-2024 MOM baseline."
+                }
+            else:
+                replan_obj = {
+                    "thought": "Occupational wage distribution benchmarks missing. Recovering by substituting national median resident wage benchmarks.",
+                    "action": "substitute_source",
+                    "substituted_sector": "Overall Economy",
+                    "substituted_years": None,
+                    "remediation_summary": "Substituted national median resident wage benchmark."
+                }
+            content = json.dumps(replan_obj, indent=2) if json_mode else replan_obj["thought"]
+
         # 1. Planning Response
         elif "plan" in p_lower or "coordinator" in p_lower or "subtasks" in p_lower:
             plan_obj: dict[str, Any] = {

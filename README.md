@@ -14,7 +14,7 @@ A research prototype full-stack agentic platform designed for public policy rese
 
 ## 🌟 Key Highlights & Engineering Features
 
-- **Autonomous Multi-Agent ReAct System**: Implements 3 specialized collaborating agents (**Data Coordinator**, **Data Extraction**, **Analytics**) and a source-grounded **Hallucination Verification Guard** with live streaming of reasoning thoughts, actions, and observations over WebSockets.
+- **Autonomous Multi-Agent LangGraph StateGraph**: Implements a compiled asynchronous `StateGraph` workflow (`plan` -> `extract` -> `check_coverage` -> `replan` -> `analyze` -> `publish`) coordinating 3 specialized agents (**Data Coordinator**, **Data Extraction**, **Analytics**) and a source-grounded **Hallucination Verification Guard** with live streaming of reasoning thoughts, actions, observations, and LLM replanning reflections over WebSockets.
 - **Domain Guardrails & Query Interpretation**: Coordinator intelligently validates geographic scope (Singapore public sector) and domain boundaries, rejecting out-of-scope requests (e.g. non-Singapore queries, general weather) with helpful policy guidance rather than hallucinating unrelated reports.
 - **Heterogeneous Singapore Government Integration**: Ingests and standardizes data across **4 distinct formats**: CSV (SingStat Table 14.1), JSON (MOM Labour Market Report), REST API (Data.gov.sg v2 with Pydantic schema validation), and Excel `.xlsx` (MOM Labour Turnover Survey), plus an internal SQLite policy database.
 - **Automated Data Quality & Cleansing Engine**: Employs snake_case normalization, missing value forward-fill & median imputation, $2.5 \times \text{IQR}$ statistical outlier capping, and empirical completeness assessment directly measured without artificial floors.
@@ -22,7 +22,7 @@ A research prototype full-stack agentic platform designed for public policy rese
 - **Grounded Factuality & Discrepancy Auditing**: Numerical value verification cross-checks quantitative statements against underlying Pandas source records and econometric metrics, populating discrepancies when ungrounded claims or fabrications occur.
 - **Interactive Visual Dashboard**: Dynamic Recharts dashboards showing Infocomm employment trajectories, 2025 projection cones, vacancy-to-unemployment tightness ratios, and wage premium comparisons.
 - **Export & Audit Suite**: 1-click downloads for formatted Markdown briefs, raw JSON data bundles, and binary PDF reports generated via `ReportLab`.
-- **Comprehensive Testing Suite**: **61 automated tests** (**53 backend pytest tests** with **84.34% test coverage** + **8 frontend vitest tests**) across unit, integration, query guardrails, multi-cloud fallback, scripted FakeProvider adversarial detection, live LLM golden set evaluation, and Locust performance benchmarks.
+- **Comprehensive Testing Suite**: **67 automated tests** (**59 backend pytest tests** with **84.85% test coverage** + **8 frontend vitest tests**) across unit, integration, query guardrails, multi-cloud fallback, scripted FakeProvider adversarial detection, live LLM golden set evaluation, and Locust performance benchmarks.
 
 ---
 
@@ -244,7 +244,7 @@ The platform is pre-loaded with high-impact Singapore public policy inquiries:
 │   ├── data/
 │   │   ├── raw/                    # SingStat CSV, MOM JSON, Data.gov.sg JSON, MOM Excel, SQLite DB
 │   │   └── policy_docs/            # Smart Nation 2.0, MOM Labour Market, TeSA Whitepapers
-│   ├── tests/                      # 41 automated unit, integration, resilience, and concurrency tests
+│   ├── tests/                      # 59 automated unit, integration, ReAct, resilience, and adversarial tests
 │   ├── Dockerfile                  # Multi-stage production container
 │   ├── requirements.txt            # Python dependencies
 │   └── run.py                      # CLI launch script

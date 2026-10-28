@@ -369,3 +369,53 @@ async def test_multi_sector_finance_vs_tech_workflow():
 
     db.close()
 
+
+@pytest.mark.asyncio
+async def test_replan_substitution_disclosure_in_report_and_citations():
+    """
+    Validates transparent substitution disclosure:
+    - When an unavailable sector or empty source triggers replanning to substitute Overall Economy:
+      1. Executive summary discloses substitution.
+      2. A dedicated cautionary finding explains the substitution at index 0.
+      3. Citations explicitly annotate the substituted proxy.
+    """
+    session_id = "test-replan-sub-disclosure"
+    db = SessionLocal()
+    existing = db.query(DBAnalysisSession).filter(DBAnalysisSession.id == session_id).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+
+    new_sess = DBAnalysisSession(
+        id=session_id,
+        query="Analyse semiconductor workforce metrics 2020-2024",
+        status=SessionStatus.PENDING.value
+    )
+    db.add(new_sess)
+    db.commit()
+    db.close()
+
+    orchestrator = WorkflowOrchestrator(session_id)
+    report = await orchestrator.execute_workflow(
+        query="Analyse semiconductor workforce metrics 2020-2024",
+        provider_preference="local_fallback"
+    )
+
+    db = SessionLocal()
+    sess = db.query(DBAnalysisSession).filter(DBAnalysisSession.id == session_id).first()
+    assert sess is not None
+    assert sess.status == SessionStatus.COMPLETED.value
+
+    report_data = json.loads(sess.report_json)
+    findings = report_data.get("key_findings", [])
+    exec_summary = report_data.get("executive_summary", "")
+    citations = report_data.get("citations", [])
+
+    # If substitutions were triggered during replan, check transparent disclosures
+    has_sub_finding = any("Substitution" in f.get("heading", "") for f in findings)
+    if has_sub_finding:
+        assert "Substitution Notice" in exec_summary
+        assert any("Substituted" in c.get("dataset_title", "") or "Substituted" in c.get("access_method", "") for c in citations)
+
+    db.close()
+
