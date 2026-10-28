@@ -27,7 +27,7 @@ class GovernmentDataConnector:
     Unified Data Connector for Singapore Government Portals:
     1. DOS SingStat (Department of Statistics Singapore) - CSV
     2. MOM Statistics (Ministry of Manpower) - JSON & Excel (.xlsx)
-    3. Data.gov.sg - REST API v2 / JSON
+    3. Data.gov.sg - REST API v2 / Schema Validated JSON
     4. Internal Policy DB (IMDA / GovTech) - SQLite
     """
     def __init__(self):
@@ -50,18 +50,28 @@ class GovernmentDataConnector:
 
             # Filter by sector if specified
             if sector:
-                df_filtered = df[df["sector"].str.contains(sector, case=False, na=False)]
-                if not df_filtered.empty:
-                    df = df_filtered
+                sector_lower = sector.lower()
+                if any(k in sector_lower for k in ["fin", "bank", "insur"]):
+                    target_pattern = "Financial & Insurance"
+                elif any(k in sector_lower for k in ["overall", "economy", "national"]):
+                    target_pattern = "Overall Economy"
+                elif any(k in sector_lower for k in ["tech", "ict", "info", "software", "digital"]):
+                    target_pattern = "Information & Communications"
+                else:
+                    target_pattern = sector
+
+                df = df[df["sector"].str.contains(target_pattern, case=False, na=False)]
 
             records = df.to_dict(orient="records")
+            is_success = len(records) > 0
             return {
                 "source": "Department of Statistics Singapore (DOS SingStat)",
                 "dataset_id": "M015661-Table-14.1",
                 "format": "CSV",
-                "status": "success",
+                "status": "success" if is_success else "empty",
                 "total_records": len(records),
-                "data": records
+                "data": records,
+                "notice": "" if is_success else f"No records found for sector='{sector}' between {start_year} and {end_year}."
             }
         except Exception as e:
             logger.error(f"Error fetching SingStat data: {e}")
@@ -86,14 +96,16 @@ class GovernmentDataConnector:
                 payload = json.load(f)
 
             records = [r for r in payload.get("records", []) if start_year <= r.get("year", 0) <= end_year]
+            is_success = len(records) > 0
             return {
                 "source": "Ministry of Manpower Singapore (MOM)",
                 "dataset_id": payload.get("series_id", "MOM-LMR-TECH"),
                 "format": "JSON",
-                "status": "success",
+                "status": "success" if is_success else "empty",
                 "total_records": len(records),
                 "description": payload.get("description", ""),
-                "data": records
+                "data": records,
+                "notice": "" if is_success else f"No MOM labour indicators available for years {start_year}-{end_year}."
             }
         except Exception as e:
             logger.error(f"Error fetching MOM data: {e}")
@@ -116,16 +128,25 @@ class GovernmentDataConnector:
 
             df = pd.read_excel(excel_path, sheet_name=0)
             if sector:
-                df = df[df["Sector"].str.contains(sector, case=False, na=False)]
+                sector_lower = sector.lower()
+                if any(k in sector_lower for k in ["fin", "bank", "insur"]):
+                    target_sec = "Financial & Insurance"
+                elif any(k in sector_lower for k in ["tech", "ict", "info", "software", "digital"]):
+                    target_sec = "Information & Communications"
+                else:
+                    target_sec = sector
+                df = df[df["Sector"].str.contains(target_sec, case=False, na=False)]
 
             records = df.to_dict(orient="records")
+            is_success = len(records) > 0
             return {
                 "source": "MOM Labour Turnover & Job Vacancy Survey",
                 "dataset_id": "MOM-EXCEL-TURNOVER-2024",
                 "format": "Excel (.xlsx)",
-                "status": "success",
+                "status": "success" if is_success else "empty",
                 "total_records": len(records),
-                "data": records
+                "data": records,
+                "notice": "" if is_success else f"No MOM turnover records found for sector='{sector}'."
             }
         except Exception as e:
             logger.error(f"Error fetching MOM Excel: {e}")
@@ -161,12 +182,27 @@ class GovernmentDataConnector:
                         except Exception as val_err:
                             logger.warning(f"Skipping malformed Data.gov.sg record: {val_err}")
                     if validated_records:
+                        if industry:
+                            ind_lower = industry.lower()
+                            if any(k in ind_lower for k in ["fin", "bank", "insur"]):
+                                target_ind = "financial"
+                            elif any(k in ind_lower for k in ["tech", "ict", "info", "software", "digital"]):
+                                target_ind = "information & communications"
+                            else:
+                                target_ind = ind_lower
+
+                            validated_records = [
+                                r for r in validated_records
+                                if (r.get("industry") and target_ind in str(r.get("industry")).lower())
+                                or (r.get("industry") and "national" in str(r.get("industry")).lower())
+                            ]
+
                         return {
                             "source": "Data.gov.sg API v2 (Live Endpoint)",
                             "dataset_id": resource_id,
                             "format": "REST API (JSON)",
                             "access_method": "Live REST API (Data.gov.sg v2)",
-                            "status": "success",
+                            "status": "success" if validated_records else "empty",
                             "total_records": len(validated_records),
                             "data": validated_records
                         }
@@ -188,20 +224,30 @@ class GovernmentDataConnector:
                     logger.warning(f"Skipping malformed snapshot record: {val_err}")
 
             if industry:
+                ind_lower = industry.lower()
+                if any(k in ind_lower for k in ["fin", "bank", "insur"]):
+                    target_ind = "financial"
+                elif any(k in ind_lower for k in ["tech", "ict", "info", "software", "digital"]):
+                    target_ind = "information & communications"
+                else:
+                    target_ind = ind_lower
+
                 validated_records = [
                     r for r in validated_records
-                    if (r.get("industry") and industry.lower() in r.get("industry", "").lower())
-                    or (r.get("industry") and "national" in r.get("industry", "").lower())
+                    if (r.get("industry") and target_ind in str(r.get("industry")).lower())
+                    or (r.get("industry") and "national" in str(r.get("industry")).lower())
                 ]
 
+            is_success = len(validated_records) > 0
             return {
                 "source": "Data.gov.sg API v2 (Verified Snapshot)",
                 "dataset_id": resource_id,
                 "format": "JSON API",
                 "access_method": "Local Verified Snapshot (Cached Offline Data)",
-                "status": "success",
+                "status": "success" if is_success else "empty",
                 "total_records": len(validated_records),
-                "data": validated_records
+                "data": validated_records,
+                "notice": "" if is_success else f"No wage benchmarks found matching industry='{industry}'."
             }
         except Exception as e:
             return {

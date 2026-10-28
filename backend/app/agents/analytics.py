@@ -19,6 +19,25 @@ from backend.app.tools.statistical_engine import statistical_engine
 
 logger = logging.getLogger("analytics_agent")
 
+
+def _fmt_int(val: int | float | None, default: str = "N/A") -> str:
+    if val is None:
+        return default
+    try:
+        return f"{int(val):,}"
+    except (ValueError, TypeError):
+        return default
+
+
+def _fmt_float(val: float | None, decimals: int = 1, default: str = "N/A") -> str:
+    if val is None:
+        return default
+    try:
+        return f"{float(val):.{decimals}f}"
+    except (ValueError, TypeError):
+        return default
+
+
 class AnalyticsAgent(BaseAgent):
     """
     Analytics Agent:
@@ -26,7 +45,7 @@ class AnalyticsAgent(BaseAgent):
     - Generates interactive Chart specifications for frontend rendering.
     - Integrates RAG policy whitepapers.
     - Synthesizes policy findings with verifiable citations.
-    - Employs Hallucination Guard to certify 100% ground-truth accuracy.
+    - Employs Hallucination Guard to audit factual grounding and flag discrepancies.
     """
     def __init__(self, session_id: str, log_callback: Callable | None = None):
         super().__init__(AgentType.ANALYTICS, session_id, log_callback)
@@ -53,30 +72,44 @@ class AnalyticsAgent(BaseAgent):
         await self.log_step(
             step_type=StepType.THOUGHT,
             title="Reasoning: Computing Econometric Trend & Forecasting Models",
-            content="Running time-series regression, CAGR calculations, and linear growth forecasts on DOS SingStat Table 14.1."
+            content=f"Running time-series regression and CAGR modeling on SingStat data for '{sector}' ({start_year}-{end_year})."
         )
 
-        emp_analytics = statistical_engine.analyze_employment_dynamics(datasets.get("singstat", []))
-        if "chart" in emp_analytics:
+        emp_analytics = statistical_engine.analyze_employment_dynamics(
+            datasets.get("singstat", []),
+            sector=sector
+        )
+        if emp_analytics.get("chart"):
             charts.append(emp_analytics["chart"])
+
+        has_emp = emp_analytics.get("has_data", False)
+        cagr_str = f"{_fmt_float(emp_analytics.get('tech_cagr'))}%" if has_emp else "N/A"
+        jobs_str = f"+{_fmt_int(emp_analytics.get('net_jobs_added'))}" if has_emp else "N/A"
+        proj_str = f"{_fmt_float(emp_analytics.get('forecast_2025_q4'))}k" if has_emp else "N/A"
 
         await self.log_step(
             step_type=StepType.ACTION,
             title="Tool Call: calculate_time_series_trends",
-            content="Executed CAGR and linear regression projection.",
+            content=f"Executed CAGR and linear projection for {sector}.",
             tool_name="calculate_time_series_trends",
-            tool_input={"sector": "Information & Communications", "window": "2020-2024"},
+            tool_input={"sector": sector, "window": f"{start_year}-{end_year}"},
             tool_output={
-                "tech_cagr": f"{emp_analytics.get('tech_cagr')}%",
-                "net_jobs_added": emp_analytics.get("net_jobs_added"),
-                "forecast_2025_q4": f"{emp_analytics.get('forecast_2025_q4')}k"
+                "has_data": has_emp,
+                "cagr": cagr_str,
+                "net_jobs_added": jobs_str,
+                "forecast_2025_q4": proj_str
             }
         )
+
+        if has_emp:
+            obs_emp = f"{sector} employment expanded at {cagr_str} CAGR ({jobs_str} net jobs), compared to overall economy baseline ({_fmt_float(emp_analytics.get('overall_cagr'))}%)."
+        else:
+            obs_emp = f"Data Boundary Notice: No employment series records available for '{sector}' in the {start_year}-{end_year} window."
 
         await self.log_step(
             step_type=StepType.OBSERVATION,
             title="Observation: Employment Growth Metrics",
-            content=f"Tech employment expanded at a {emp_analytics.get('tech_cagr')}% CAGR (+{emp_analytics.get('net_jobs_added'):,} net jobs), outperforming overall economy CAGR ({emp_analytics.get('overall_cagr')}%)."
+            content=obs_emp
         )
 
         # ---------------------------------------------------------
@@ -85,17 +118,27 @@ class AnalyticsAgent(BaseAgent):
         await self.log_step(
             step_type=StepType.THOUGHT,
             title="Reasoning: Evaluating Labour Market Tightness & Re-entry Rates",
-            content="Correlating quarterly job vacancies against retrenchment counts from MOM statistics to evaluate post-2023 stabilization."
+            content="Correlating quarterly job vacancies against retrenchment counts from MOM statistics."
         )
 
         tightness_analytics = statistical_engine.analyze_labour_market_tightness(datasets.get("mom", []))
-        if "chart" in tightness_analytics:
+        if tightness_analytics.get("chart"):
             charts.append(tightness_analytics["chart"])
+
+        has_tightness = tightness_analytics.get("has_data", False)
+        peak_vac_str = _fmt_int(tightness_analytics.get("peak_vacancies"))
+        peak_ret_str = _fmt_int(tightness_analytics.get("peak_retrenchments"))
+        reentry_str = f"{_fmt_float(tightness_analytics.get('latest_reentry_rate'))}%"
+
+        if has_tightness:
+            obs_tightness = f"Peak vacancies: {peak_vac_str} in {tightness_analytics.get('peak_period', 'N/A')}. Peak retrenchments: {peak_ret_str} in {tightness_analytics.get('peak_retrench_period', 'N/A')}. Current 6-month re-entry rate: {reentry_str}."
+        else:
+            obs_tightness = f"MOM Notice: No quarterly labour market indicator records found for {start_year}-{end_year}."
 
         await self.log_step(
             step_type=StepType.OBSERVATION,
             title="Observation: MOM Tightness Profile",
-            content=f"Peak vacancies recorded in {tightness_analytics.get('peak_period')} ({tightness_analytics.get('peak_vacancies'):,}). Peak retrenchments in {tightness_analytics.get('peak_retrench_period')} ({tightness_analytics.get('peak_retrenchments'):,}). Current 6-month re-entry rate into employment is healthy at {tightness_analytics.get('latest_reentry_rate')}%."
+            content=obs_tightness
         )
 
         # ---------------------------------------------------------
@@ -103,18 +146,31 @@ class AnalyticsAgent(BaseAgent):
         # ---------------------------------------------------------
         await self.log_step(
             step_type=StepType.THOUGHT,
-            title="Reasoning: Benchmarking Salary Premiums Across Tech Roles",
-            content="Evaluating Data.gov.sg salary medians: Software Engineers, Data Scientists, AI Specialists vs National Median Resident Wage."
+            title="Reasoning: Benchmarking Salary Premiums Across Sector Roles",
+            content=f"Evaluating Data.gov.sg salary medians: {sector} vs National Median Resident Wage."
         )
 
-        wage_analytics = statistical_engine.analyze_wages_and_premium(datasets.get("wages", []))
-        if "chart" in wage_analytics:
+        wage_analytics = statistical_engine.analyze_wages_and_premium(
+            datasets.get("wages", []),
+            sector=sector
+        )
+        if wage_analytics.get("chart"):
             charts.append(wage_analytics["chart"])
+
+        has_wages = wage_analytics.get("has_data", False)
+        sec_wage_str = f"S${_fmt_int(wage_analytics.get('tech_median_wage'))}"
+        nat_wage_str = f"S${_fmt_int(wage_analytics.get('national_median_wage'))}"
+        prem_str = f"+{_fmt_float(wage_analytics.get('tech_premium_pct'))}%"
+
+        if has_wages:
+            obs_wage = f"{sector} median wage is {sec_wage_str}, commanding a {prem_str} premium over National Median ({nat_wage_str})."
+        else:
+            obs_wage = f"Wage Benchmark Notice: No occupational wage records found for '{sector}' in dataset."
 
         await self.log_step(
             step_type=StepType.OBSERVATION,
             title="Observation: Wage Premium Findings",
-            content=f"Tech overall median wage is S${wage_analytics.get('tech_median_wage'):,.0f}, commanding a +{wage_analytics.get('tech_premium_pct')}% premium over National Median (S${wage_analytics.get('national_median_wage'):,.0f}). AI specialists command highest median of S${wage_analytics.get('ai_specialist_wage'):,.0f}."
+            content=obs_wage
         )
 
         # ---------------------------------------------------------
@@ -141,7 +197,7 @@ class AnalyticsAgent(BaseAgent):
         await self.log_step(
             step_type=StepType.THOUGHT,
             title="Reasoning: Synthesizing Policy Report with Structured Citations",
-            content="Prompting LLM Router to synthesize executive summary, structured findings, and actionable policy recommendations grounded in computed metrics."
+            content="Prompting LLM Router to synthesize executive summary, structured findings, and actionable policy recommendations."
         )
 
         synthesis_prompt = f"""
@@ -149,15 +205,17 @@ You are the Senior Policy Analyst Agent for Singapore public policy research.
 Generate a structured, evidence-based policy report answering:
 "{query}"
 
-Ground your analysis strictly on the following computed data and policy documents:
-- Tech Employment: Started at {emp_analytics.get('tech_start_employment')}k (2020-Q1) -> Rose to {emp_analytics.get('tech_end_employment')}k (2024-Q4)
-- Net Tech Jobs Created: +{emp_analytics.get('net_jobs_added')} jobs ({emp_analytics.get('tech_total_growth_pct')}% total growth, CAGR: {emp_analytics.get('tech_cagr')}%)
-- Overall Economy CAGR: {emp_analytics.get('overall_cagr')}%
-- Tech Job Vacancies: Peaked at {tightness_analytics.get('peak_vacancies')} ({tightness_analytics.get('peak_period')}), Normalized to {tightness_analytics.get('latest_vacancies')} (2024-Q4)
-- Tech Retrenchments: Peaked at {tightness_analytics.get('peak_retrenchments')} ({tightness_analytics.get('peak_retrench_period')}), Normalized to {tightness_analytics.get('latest_retrenchments')} (2024-Q4)
-- 6-Month Re-entry Rate: {tightness_analytics.get('latest_reentry_rate')}%
-- 2024 Median Wage: Tech S${wage_analytics.get('tech_median_wage')} vs National Resident S${wage_analytics.get('national_median_wage')} (Wage Premium: +{wage_analytics.get('tech_premium_pct')}%)
-- AI Specialist Median Wage: S${wage_analytics.get('ai_specialist_wage')}
+Target Sector: {sector}
+Timeframe: {start_year} to {end_year}
+
+Computed Empirical Data:
+- Sector Employment: Started at {_fmt_float(emp_analytics.get('tech_start_employment'))}k -> Rose to {_fmt_float(emp_analytics.get('tech_end_employment'))}k
+- Net Jobs Created: {jobs_str} ({_fmt_float(emp_analytics.get('tech_total_growth_pct'))}% total growth, CAGR: {cagr_str})
+- Overall Economy CAGR: {_fmt_float(emp_analytics.get('overall_cagr'))}%
+- Job Vacancies: Peaked at {peak_vac_str} ({tightness_analytics.get('peak_period', 'N/A')}), Normalized to {_fmt_int(tightness_analytics.get('latest_vacancies'))}
+- Retrenchments: Peaked at {peak_ret_str} ({tightness_analytics.get('peak_retrench_period', 'N/A')}), Normalized to {_fmt_int(tightness_analytics.get('latest_retrenchments'))}
+- 6-Month Re-entry Rate: {reentry_str}
+- Median Wage: {sector} {sec_wage_str} vs National Resident {nat_wage_str} (Wage Premium: {prem_str})
 
 Policy Context:
 {policy_context_text}
@@ -188,23 +246,42 @@ Output format must be valid JSON matching this schema:
         try:
             report_dict = json.loads(response.content)
         except Exception:
-            report_dict = {
-                "title": f"Policy Analysis: {query}",
-                "executive_summary": f"Singapore's tech sector added +{emp_analytics.get('net_jobs_added', 56700):,} net jobs between 2020 and 2024, achieving a {emp_analytics.get('tech_cagr', 10.3)}% CAGR.",
-                "key_findings": [
-                    {
-                        "heading": "Robust Employment Expansion Outpacing National Baseline",
-                        "body": f"The tech sector achieved {emp_analytics.get('tech_cagr', 10.3)}% CAGR, outpacing the national baseline ({emp_analytics.get('overall_cagr', 3.1)}%).",
-                        "sentiment": "positive",
-                        "statistical_evidence": f"Grew from {emp_analytics.get('tech_start_employment', 118.4)}k to {emp_analytics.get('tech_end_employment', 175.1)}k.",
-                        "citation_id": "SINGSTAT-M015661"
-                    }
-                ],
-                "policy_recommendations": [
-                    "Continue expanding TeSA conversion pathways for AI Engineering.",
-                    "Sustain active job-matching pipelines to keep re-entry rate above 75%."
-                ]
-            }
+            if has_emp:
+                report_dict = {
+                    "title": f"Policy Analysis: Singapore {sector} Workforce & Wage Dynamics ({start_year}-{end_year})",
+                    "executive_summary": f"Between {start_year} and {end_year}, Singapore's {sector} sector expanded at a {cagr_str} CAGR, generating {jobs_str} net positions. Median monthly wage reached {sec_wage_str}, maintaining a {prem_str} premium over the national median ({nat_wage_str}).",
+                    "key_findings": [
+                        {
+                            "heading": "Workforce Expansion & Resilience",
+                            "body": f"The {sector} sector expanded at a {cagr_str} CAGR, outpacing the national baseline ({_fmt_float(emp_analytics.get('overall_cagr'))}%).",
+                            "sentiment": "positive",
+                            "statistical_evidence": f"Total employment grew from {_fmt_float(emp_analytics.get('tech_start_employment'))}k to {_fmt_float(emp_analytics.get('tech_end_employment'))}k ({jobs_str} net jobs).",
+                            "citation_id": "SINGSTAT-M015661"
+                        }
+                    ],
+                    "policy_recommendations": [
+                        "Continue expanding conversion pathways and AI engineering skill upgrades.",
+                        "Maintain active job matching and career re-entry programs to sustain high employment rates."
+                    ]
+                }
+            else:
+                report_dict = {
+                    "title": f"Policy Synthesis: Data Availability & Scope Review for {sector} ({start_year}-{end_year})",
+                    "executive_summary": f"An empirical review across Singapore government repositories indicates that official records for '{sector}' are concentrated within 2020-2024. For the requested window ({start_year}-{end_year}), no matching quarterly records were available.",
+                    "key_findings": [
+                        {
+                            "heading": "Data Availability & Historical Boundaries",
+                            "body": "Authoritative Singapore government datasets in this repository cover 2020–2024 across Information & Communications, Financial Services, and Overall Economy.",
+                            "sentiment": "neutral",
+                            "statistical_evidence": f"Zero empirical records found for {sector} ({start_year}-{end_year}).",
+                            "citation_id": "SCOPE-DATA-BOUNDARY"
+                        }
+                    ],
+                    "policy_recommendations": [
+                        "Refine analytical timeframe to 2020-2024.",
+                        "Select one of the supported Singapore sectors: Information & Communications, Financial & Insurance Services, or Overall Economy."
+                    ]
+                }
 
         # ---------------------------------------------------------
         # 6. Hallucination Detection & Accuracy Verification Guard
@@ -212,10 +289,9 @@ Output format must be valid JSON matching this schema:
         await self.log_step(
             step_type=StepType.THOUGHT,
             title="Reasoning: Auditing Factuality via Hallucination Verification Guard",
-            content="Running automated ground-truth verification on all numerical claims against source dataframes."
+            content="Running automated semantic ground-truth verification on all numerical claims against source dataframes."
         )
 
-        # Combine all computed analytics for ground truth verification
         computed_gt_metrics = {
             **emp_analytics,
             **tightness_analytics,
@@ -236,7 +312,7 @@ Output format must be valid JSON matching this schema:
             content=f"Factuality Audit Complete: {verification_result['summary']} Hallucination Score: {verification_result['hallucination_score']}. Verified facts: {len(verification_result['verified_facts'])}, Discrepancies: {len(verification_result['discrepancies'])}."
         )
 
-        # Assemble Citations dynamically based on actual acquired sources & provenance
+        # Assemble Citations dynamically based on actual acquired sources
         citations: list[PolicyCitation] = []
         if "singstat" in datasets:
             citations.append(PolicyCitation(
@@ -244,7 +320,7 @@ Output format must be valid JSON matching this schema:
                 dataset_title=f"Table 14.1 Employment in {sector}",
                 time_period=f"{start_year}-Q1 to {end_year}-Q4",
                 citation_id="SINGSTAT-M015661",
-                access_method=provenance.get("singstat", "DOS SingStat CSV Direct")
+                access_method=provenance.get("singstat", "DOS SingStat CSV")
             ))
         if "mom" in datasets:
             citations.append(PolicyCitation(
@@ -270,7 +346,7 @@ Output format must be valid JSON matching this schema:
                 citation_id="MOM-TURNOVER-EXCEL",
                 access_method=provenance.get("excel_turnover", "MOM Excel Survey")
             ))
-        if "policy_kpis" in datasets:
+        if "policy_db" in datasets:
             citations.append(PolicyCitation(
                 source_agency="Infocomm Media Development Authority (IMDA)",
                 dataset_title="Internal Policy DB: TeSA & National AI Strategy 2.0 KPIs",
@@ -279,8 +355,7 @@ Output format must be valid JSON matching this schema:
                 access_method="Internal Policy Database (SQLite)"
             ))
 
-        # Empirical data quality score derived from active datasets
-        measured_quality = overall_quality_score if overall_quality_score is not None else 98.5
+        measured_quality = overall_quality_score if overall_quality_score is not None else 0.0
 
         final_report = PolicyReport(
             session_id=self.session_id,

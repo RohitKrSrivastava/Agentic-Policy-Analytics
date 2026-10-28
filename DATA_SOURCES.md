@@ -15,8 +15,8 @@ Pursuant to the assignment guidelines allowing mock or simplified benchmark data
 | **DOS SingStat Table 14.1** | `CSV` | Based on historical Singapore Department of Statistics Infocomm employment series (2020-2024). | Cleaned historical snapshot calibrated against official published quarterly benchmarks. |
 | **MOM Labour Market Report** | `JSON` | Modeled after MOM quarterly labour market releases (job vacancies, retrenchments, 6-month re-entry rate). | Structured JSON snapshot capturing the 2022-2023 restructuring cycle and 2024 recovery. |
 | **Data.gov.sg Wages API** | `REST API / JSON` | Live GovTech Data.gov.sg API v2 (`datastore_search` endpoint), with local verified fallback snapshot. | Live REST API query validated via Pydantic schema (`DataGovSgWageRecord`). Falls back to offline snapshot if air-gapped or network-restricted. |
-| **MOM Labour Turnover Survey** | `Excel (.xlsx)` | Synthesized benchmark based on MOM sector recruitment and resignation rate distributions. | Programmatically generated via [`backend/data/seed_data.py`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/backend/data/seed_data.py) using `openpyxl`. |
-| **Internal Policy DB** | `SQLite (.db)` | Synthetic policy governance benchmark representing IMDA/MDDI TeSA and National AI Strategy 2.0 KPI targets. | Programmatically generated via [`backend/data/seed_data.py`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/backend/data/seed_data.py) in SQLite. |
+| **MOM Labour Turnover Survey** | `Excel (.xlsx)` | Synthesized benchmark based on MOM sector recruitment and resignation rate distributions. | Programmatically generated via [`backend/data/seed_data.py`](backend/data/seed_data.py) using `openpyxl`. |
+| **Internal Policy DB** | `SQLite (.db)` | Synthetic policy governance benchmark representing IMDA/MDDI TeSA and National AI Strategy 2.0 KPI targets. | Programmatically generated via [`backend/data/seed_data.py`](backend/data/seed_data.py) in SQLite. |
 
 ---
 
@@ -80,7 +80,7 @@ Pursuant to the assignment guidelines allowing mock or simplified benchmark data
 
 ## 3. Data Cleansing & Empirical Quality Assessment
 
-Every dataset processed by the **Data Extraction Agent** undergoes an automated four-stage quality verification pipeline implemented in [`backend/app/tools/data_quality.py`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/backend/app/tools/data_quality.py):
+Every dataset processed by the **Data Extraction Agent** undergoes an automated four-stage quality verification pipeline implemented in [`backend/app/tools/data_quality.py`](backend/app/tools/data_quality.py):
 
 ```mermaid
 flowchart LR

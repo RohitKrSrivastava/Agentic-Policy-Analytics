@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 18](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg)](https://www.typescriptlang.org/)
-[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-83%25-brightgreen.svg)](TESTING.md)
+[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-84%25-brightgreen.svg)](TESTING.md)
 [![Factuality Audit](https://img.shields.io/badge/Factuality%20Audit-Grounded-blue.svg)](TESTING.md)
 
 An enterprise-grade, production-ready Full-Stack Agentic Solution designed for public policy researchers, economists, and government analysts. The platform automates the extraction, quality auditing, econometric modeling, and policy synthesis of heterogeneous datasets across **DOS SingStat**, **Ministry of Manpower (MOM)**, **Data.gov.sg**, and internal government databases.
@@ -22,7 +22,7 @@ An enterprise-grade, production-ready Full-Stack Agentic Solution designed for p
 - **Grounded Factuality & Discrepancy Auditing**: Numerical value verification cross-checks quantitative statements against underlying Pandas source records and econometric metrics, populating discrepancies when ungrounded claims or fabrications occur.
 - **Interactive Visual Dashboard**: Dynamic Recharts dashboards showing Infocomm employment trajectories, 2025 projection cones, vacancy-to-unemployment tightness ratios, and wage premium comparisons.
 - **Export & Audit Suite**: 1-click downloads for formatted Markdown briefs, raw JSON data bundles, and binary PDF reports generated via `ReportLab`.
-- **Comprehensive Testing Suite**: **33 automated tests passing in ~11 seconds** with **83% backend test coverage** across unit, integration, query guardrails, multi-cloud fallback, adversarial hallucination detection, and performance benchmarks.
+- **Comprehensive Testing Suite**: **41 automated tests passing in ~13 seconds** with **84% backend test coverage** across unit, integration, query guardrails, multi-cloud fallback, adversarial hallucination detection, and performance benchmarks.
 
 ---
 
@@ -30,7 +30,7 @@ An enterprise-grade, production-ready Full-Stack Agentic Solution designed for p
 
 ```mermaid
 flowchart TD
-    subgraph Frontend_UI [Frontend: Next.js / React + TypeScript + Tailwind CSS]
+    subgraph Frontend_UI [Frontend: React 18 / Vite / TypeScript + Tailwind CSS]
         A1[Natural Language Query Bar]
         A2[Live ReAct Step Monitor]
         A3[Interactive Dashboard Recharts]
@@ -71,7 +71,7 @@ flowchart TD
     Agentic_Layer <--> Singapore_Data
 ```
 
-For complete architectural details, see [`ARCHITECTURE.md`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/ARCHITECTURE.md).
+For complete architectural details, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
@@ -164,7 +164,7 @@ docker-compose up --build
 
 ## 🧪 Comprehensive Testing & Validation
 
-The test suite contains **27 unit, integration, and load tests**:
+The test suite contains **41 unit, integration, resilience, and concurrency tests**:
 
 ```bash
 # Run all tests with verbose output
@@ -175,14 +175,14 @@ pytest backend/tests --cov=backend/app --cov-report=term
 ```
 
 ### Coverage Highlights:
-- **`agents/extractor.py`**: 100% Coverage
+- **`agents/extractor.py`**: 95% Coverage
 - **`agents/base_agent.py`**: 100% Coverage
-- **`evaluation/hallucination_guard.py`**: 100% Coverage
+- **`evaluation/hallucination_guard.py`**: 92% Coverage
 - **`tools/data_quality.py`**: 98% Coverage
-- **`agents/analytics.py`**: 96% Coverage
-- **Overall Backend**: **84% Coverage (27 passed in 6.40s)**
+- **`agents/analytics.py`**: 87% Coverage
+- **Overall Backend**: **84% Coverage (41 passed in 13.22s)**
 
-For the complete test plan, methodology, and verification formulas, see [`TESTING.md`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/TESTING.md).
+For the complete test plan, methodology, and verification formulas, see [`TESTING.md`](TESTING.md).
 
 ---
 
@@ -242,7 +242,7 @@ The platform is pre-loaded with high-impact Singapore public policy inquiries:
 │   ├── data/
 │   │   ├── raw/                    # SingStat CSV, MOM JSON, Data.gov.sg JSON, MOM Excel, SQLite DB
 │   │   └── policy_docs/            # Smart Nation 2.0, MOM Labour Market, TeSA Whitepapers
-│   ├── tests/                      # 27 automated unit, integration, and load tests
+│   ├── tests/                      # 41 automated unit, integration, resilience, and concurrency tests
 │   ├── Dockerfile                  # Multi-stage production container
 │   ├── requirements.txt            # Python dependencies
 │   └── run.py                      # CLI launch script
@@ -273,7 +273,7 @@ The platform is pre-loaded with high-impact Singapore public policy inquiries:
 
 The required 1-2 page strategic paper answering Section 2 (*"How would you evolve your agentic policy data analytics platform to better serve policy researchers in secure government environments?"*) is located in:
 
-👉 **[`INNOVATION_ASSESSMENT.md`](file:///d:/workspace/IMDA/Full%20Stack%20Engineer%20GenAI/INNOVATION_ASSESSMENT.md)**
+👉 **[`INNOVATION_ASSESSMENT.md`](INNOVATION_ASSESSMENT.md)**
 
 It covers:
 - Sovereign, air-gapped LLM deployment via vLLM and SEA-LION under Singapore GCC 2.0
