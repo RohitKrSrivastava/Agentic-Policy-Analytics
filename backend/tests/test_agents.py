@@ -113,3 +113,78 @@ async def test_analytics_agent_synthesis():
     assert report.quality_score >= 80.0
     assert report.hallucination_score <= 0.05
     assert len(analysis_res["charts"]) >= 2
+
+
+@pytest.mark.asyncio
+async def test_tool_registry_and_unknown_tool_recovery():
+    """
+    Finding 3 / ReAct Agent Loop:
+    When an unknown or hallucinated tool name is planned, Extractor logs a tool check,
+    triggers reflection for agentic tool recovery, and maps it to an authorized tool.
+    """
+    logged_steps = []
+    async def dummy_callback(step):
+        logged_steps.append(step)
+
+    extractor = DataExtractionAgent(session_id="test-sess-tool-rec", log_callback=dummy_callback)
+    custom_plan = {
+        "thought": "Execute extraction with custom tool names.",
+        "subtasks": [
+            {
+                "task_id": "ST-UNKNOWN-01",
+                "tool_name": "query_custom_singstat_employment_table",
+                "reasoning": "Attempt query with hallucinated tool name",
+                "parameters": {"sector": "Information & Communications", "start_year": 2020, "end_year": 2024}
+            }
+        ]
+    }
+    res = await extractor.extract_sources(plan=custom_plan)
+    assert "singstat" in res["datasets"]
+    assert len(res["datasets"]["singstat"]) > 0
+
+    # Verify reflection step for agentic tool recovery
+    recovery_steps = [s for s in logged_steps if s.step_type == StepType.REFLECTION and "Agentic Tool Recovery" in s.title]
+    assert len(recovery_steps) >= 1
+    assert "query_singstat_table" in recovery_steps[0].content
+
+
+@pytest.mark.asyncio
+async def test_self_correcting_guard_repairs_fabricated_metrics():
+    """
+    Finding 7 / Self-Correction Loop:
+    When the generator produces ungrounded claims, Analytics Agent triggers
+    verification -> reflection -> repair -> pruning loop, logging REFLECTION steps.
+    """
+    logged_steps = []
+    async def dummy_callback(step):
+        logged_steps.append(step)
+
+    analytics = AnalyticsAgent(session_id="test-sess-self-correct", log_callback=dummy_callback)
+
+    fabricated_report_dict = {
+        "title": "Fabricated Assessment",
+        "executive_summary": "Singapore tech employment grew at 95.0% CAGR with median salary of S$99,000 per month.",
+        "key_findings": [
+            {
+                "heading": "Fabricated Salary",
+                "body": "Specialized practitioners command S$99,000 monthly.",
+                "sentiment": "positive",
+                "statistical_evidence": "S$99,000 median wage",
+                "citation_id": "FAKE"
+            }
+        ],
+        "policy_recommendations": ["Expand talent grants."]
+    }
+
+    discrepancies = [
+        {"token": "95.0%", "claimed_context": "95.0% CAGR", "verification_status": "FABRICATED", "reason": "No matching CAGR in ground truth."},
+        {"token": "99,000", "claimed_context": "S$99,000", "verification_status": "FABRICATED", "reason": "No matching wage in ground truth."}
+    ]
+
+    # Test deterministic claim pruning fallback
+    pruned = analytics._prune_unverified_claims(fabricated_report_dict, discrepancies)
+    assert "99,000" not in pruned["executive_summary"]
+    assert "95.0%" not in pruned["executive_summary"]
+    for finding in pruned["key_findings"]:
+        assert "99,000" not in finding["body"]
+        assert "95.0%" not in finding["body"]

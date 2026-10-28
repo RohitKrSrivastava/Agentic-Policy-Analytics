@@ -133,7 +133,7 @@ class HallucinationVerificationGuard:
             return True
         return False
 
-    def build_ground_truth_index(self, ground_truth: dict[str, Any]) -> list[dict[str, Any]]:
+    def build_ground_truth_index(self, ground_truth: dict[str, Any], rag_chunks: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         index: list[dict[str, Any]] = []
 
         def add_entry(val: float, category: str, source: str, desc: str, tol: float = 0.1):
@@ -220,44 +220,38 @@ class HallucinationVerificationGuard:
                         if col in row and isinstance(row[col], (int, float)):
                             add_entry(float(row[col]), "WAGE", "datagovsg_wages_by_sector.json", f"Data.gov.sg {ind} {col}: S${row[col]}", tol=2.0)
 
-        # Baseline authoritative Singapore Tech Sector benchmarks (2020-2024)
-        if not index:
-            baseline_facts = [
-                (118.4, "HEADCOUNT", "singstat_tech_employment.csv", "Tech employment 2020-Q1 was 118.4k", 0.1),
-                (118400.0, "HEADCOUNT", "singstat_tech_employment.csv", "Tech employment 2020-Q1 was 118,400", 1.0),
-                (175.1, "HEADCOUNT", "singstat_tech_employment.csv", "Tech employment 2024-Q4 was 175.1k", 0.1),
-                (175100.0, "HEADCOUNT", "singstat_tech_employment.csv", "Tech employment 2024-Q4 was 175,100", 1.0),
-                (56700.0, "HEADCOUNT", "singstat_tech_employment.csv", "Net tech jobs added 2020-2024 was 56,700", 1.0),
-                (56.7, "HEADCOUNT", "singstat_tech_employment.csv", "Net tech jobs added was 56.7k", 0.1),
-                (47.9, "PERCENTAGE", "singstat_tech_employment.csv", "Net tech employment growth was 47.9%", 0.1),
-                (8.14, "CAGR", "singstat_tech_employment.csv", "Tech sector employment CAGR was 8.14%", 0.05),
-                (10.3, "CAGR", "singstat_tech_employment.csv", "Tech sector employment CAGR was 10.3%", 0.05),
-                (3.1, "CAGR", "singstat_tech_employment.csv", "Economy overall employment CAGR was 3.1%", 0.05),
-                (21300.0, "VACANCY", "mom_labour_market_indicators.json", "Peak tech job vacancies were 21,300 in 2022-Q1", 1.0),
-                (21.3, "VACANCY", "mom_labour_market_indicators.json", "Peak tech job vacancies were 21.3k", 0.1),
-                (16500.0, "VACANCY", "mom_labour_market_indicators.json", "Latest tech job vacancies were 16,500 in 2024-Q4", 1.0),
-                (16.5, "VACANCY", "mom_labour_market_indicators.json", "Latest tech job vacancies were 16.5k", 0.1),
-                (1420.0, "RETRENCHMENT", "mom_labour_market_indicators.json", "Peak quarterly retrenchments were 1,420 in 2023-Q1", 1.0),
-                (420.0, "RETRENCHMENT", "mom_labour_market_indicators.json", "Normalized quarterly retrenchments were 420 in 2024-Q4", 1.0),
-                (7350.0, "WAGE", "datagovsg_wages_by_sector.json", "Tech median monthly wage was S$7,350 in 2024", 2.0),
-                (5350.0, "WAGE", "datagovsg_wages_by_sector.json", "National median resident wage was S$5,350 in 2024", 2.0),
-                (8800.0, "WAGE", "datagovsg_wages_by_sector.json", "AI specialist median wage was S$8,800 in 2024", 2.0),
-                (8350.0, "WAGE", "datagovsg_wages_by_sector.json", "Cybersecurity median wage was S$8,350 in 2024", 2.0),
-                (7650.0, "WAGE", "datagovsg_wages_by_sector.json", "Software engineer median wage was S$7,650 in 2024", 2.0),
-                (37.4, "PERCENTAGE", "datagovsg_wages_by_sector.json", "Tech wage premium over national median was 37.4%", 0.1),
-                (1.75, "RATIO", "mom_labour_market_indicators.json", "Vacancy-to-unemployed ratio in 2024-Q4 was 1.75", 0.05),
-                (2.42, "RATIO", "mom_labour_market_indicators.json", "Peak vacancy-to-unemployed ratio was 2.42 in 2022-Q1", 0.05),
-                (78.9, "REENTRY_RATE", "mom_labour_market_indicators.json", "6-month re-entry rate into employment was 78.9%", 0.1),
-                (79.7, "PERCENTAGE", "singstat_tech_employment.csv", "Local resident workforce share reached 79.7% in 2024-Q4", 0.1)
-            ]
-            for val, cat, src, desc, tol in baseline_facts:
-                add_entry(val, cat, src, desc, tol)
+            all_rag = (rag_chunks or []) + datasets.get("rag_chunks", []) + ground_truth.get("rag_chunks", [])
+            for chunk in all_rag:
+                if isinstance(chunk, dict):
+                    doc_title = chunk.get("doc_title") or chunk.get("title") or chunk.get("doc_id", "Policy Whitepaper")
+                    content = chunk.get("content", "")
+                    for raw_tok in re.findall(r'(\$?\d[\d,]*(?:\.\d+)?%?(?:\s*[kKmMbB])?)', content):
+                        for clean_num in self.parse_numeric_value(raw_tok):
+                            if not self.is_benign_structural_token(raw_tok, clean_num):
+                                add_entry(clean_num, "RAG_POLICY_FACT", doc_title, f"Policy Whitepaper ({doc_title}): {raw_tok}", tol=0.25)
 
         return index
 
-    def verify_report(self, report_dict: dict[str, Any], ground_truth: dict[str, Any] | None = None) -> dict[str, Any]:
+    def verify_report(self, report_dict: dict[str, Any], ground_truth: dict[str, Any] | None = None, rag_chunks: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         ground_truth = ground_truth or {}
-        gt_index = self.build_ground_truth_index(ground_truth)
+        gt_index = self.build_ground_truth_index(ground_truth, rag_chunks=rag_chunks)
+
+        if not gt_index:
+            return {
+                "is_factually_consistent": False,
+                "verification_status": "unverifiable",
+                "accuracy_percentage": 0.0,
+                "hallucination_score": 1.0,
+                "total_claims_audited": 0,
+                "verified_facts": [],
+                "discrepancies": [{
+                    "token": "N/A",
+                    "claimed_context": "No ground truth available",
+                    "verification_status": "UNVERIFIABLE",
+                    "reason": "Zero ground-truth datasets or metrics provided for verification."
+                }],
+                "summary": "Unverifiable: Zero ground-truth datasets or metrics available."
+            }
 
         text_sections: list[str] = [
             report_dict.get("title", ""),
@@ -313,19 +307,20 @@ class HallucinationVerificationGuard:
                             claim_category == gt_cat or
                             (claim_category == "PERCENTAGE" and gt_cat in ["PERCENTAGE", "CAGR", "TOTAL_GROWTH", "REENTRY_RATE"]) or
                             (claim_category == "GENERAL") or
-                            (gt_cat == "GENERAL")
+                            (gt_cat == "GENERAL") or
+                            (gt_cat == "RAG_POLICY_FACT")
                         )
 
                         # Explicit forbidden cross-domain bindings
-                        if claim_category == "WAGE" and gt_cat != "WAGE":
+                        if claim_category == "WAGE" and gt_cat != "WAGE" and gt_cat != "RAG_POLICY_FACT":
                             compatible = False
                         if gt_cat == "WAGE" and claim_category != "WAGE":
                             compatible = False
-                        if claim_category == "RETRENCHMENT" and gt_cat != "RETRENCHMENT":
+                        if claim_category == "RETRENCHMENT" and gt_cat != "RETRENCHMENT" and gt_cat != "RAG_POLICY_FACT":
                             compatible = False
                         if gt_cat == "RETRENCHMENT" and claim_category != "RETRENCHMENT":
                             compatible = False
-                        if claim_category == "CAGR" and gt_cat != "CAGR":
+                        if claim_category == "CAGR" and gt_cat != "CAGR" and gt_cat != "RAG_POLICY_FACT":
                             compatible = False
 
                         if compatible:
@@ -371,16 +366,23 @@ class HallucinationVerificationGuard:
             accuracy_pct = 100.0
             hallucination_score = 0.0
             summary = "No quantitative claims detected in text."
+            verif_status = "verified"
         else:
             accuracy_pct = round((len(verified_facts) / total_analyzed) * 100.0, 1)
             hallucination_score = round(len(discrepancies) / total_analyzed, 3)
             if len(discrepancies) == 0:
                 summary = f"Audited {total_analyzed} quantitative claims: {len(verified_facts)} verified against ground truth; 0 discrepancies detected."
-            else:
+                verif_status = "verified"
+            elif len(verified_facts) > 0:
                 summary = f"Audited {total_analyzed} quantitative claims: {len(verified_facts)} verified; {len(discrepancies)} ungrounded or fabricated claims flagged as discrepancies."
+                verif_status = "partially_verified"
+            else:
+                summary = f"Audited {total_analyzed} quantitative claims: 0 verified; {len(discrepancies)} ungrounded claims flagged."
+                verif_status = "unverified"
 
         return {
             "is_factually_consistent": len(discrepancies) == 0 and len(verified_facts) > 0,
+            "verification_status": verif_status,
             "hallucination_score": hallucination_score,
             "accuracy_percentage": accuracy_pct,
             "total_claims_audited": total_analyzed,

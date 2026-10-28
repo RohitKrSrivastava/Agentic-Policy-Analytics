@@ -3,24 +3,22 @@ from collections.abc import Callable
 from typing import Any
 
 from backend.app.agents.base_agent import BaseAgent
+from backend.app.agents.tools_registry import TOOL_REGISTRY
 from backend.app.models.schemas import AgentType, DataQualityItem, StepType
 from backend.app.tools.data_quality import quality_engine
 from backend.app.tools.government_sources import data_connector
 
 logger = logging.getLogger("extractor_agent")
 
+
 class DataExtractionAgent(BaseAgent):
     """
     Data Extraction Agent:
     - Receives parameterized execution plan from Coordinator Agent.
-    - Dynamically iterates over planned subtasks and executes selected tools:
-      1. query_singstat_table (DOS SingStat CSV)
-      2. query_mom_statistics (MOM Labour Market Indicators JSON)
-      3. query_datagovsg_api (Data.gov.sg Wages REST API / Schema-Validated JSON)
-      4. fetch_mom_turnover_excel (MOM Labour Turnover Survey Excel .xlsx)
-      5. fetch_internal_policy_kpis (Internal Policy DB SQLite)
-    - Employs Agentic Replanning / Fallback when a tool returns empty datasets.
-    - Applies schema normalization, IQR outlier capping, and empirical completeness calculation.
+    - Validates tools against authorized TOOL_REGISTRY with typed schemas.
+    - Executes ReAct tool dispatches and dynamically handles unknown tools or schema errors.
+    - Captures missing data coverage gaps to signal orchestrator replanning.
+    - Applies schema normalization, IQR outlier treatment, and empirical completeness assessment.
     """
     def __init__(self, session_id: str, log_callback: Callable | None = None):
         super().__init__(AgentType.EXTRACTION, session_id, log_callback)
@@ -133,11 +131,51 @@ class DataExtractionAgent(BaseAgent):
         datasets: dict[str, Any] = {}
         quality_reports: list[DataQualityItem] = []
         source_provenance: dict[str, str] = {}
+        missing_sources: list[str] = []
 
         for st in subtasks:
             t_name = st.get("tool_name", "")
             t_reason = st.get("reasoning", f"Executing planned subtask: {t_name}")
             st_params = st.get("parameters") or params
+
+            # Validate against tool registry
+            if t_name not in TOOL_REGISTRY:
+                await self.log_step(
+                    step_type=StepType.ACTION,
+                    title=f"Tool Check: Unknown Tool '{t_name}'",
+                    content=f"Tool '{t_name}' is not in the authorized Tool Registry. Available tools: {list(TOOL_REGISTRY.keys())}.",
+                    tool_name=t_name,
+                    tool_input=st_params
+                )
+                # Attempt intelligent recovery mapping
+                recovered_tool = None
+                t_lower = t_name.lower()
+                if any(k in t_lower for k in ["singstat", "employment"]):
+                    recovered_tool = "query_singstat_table"
+                elif any(k in t_lower for k in ["mom", "vacanc", "retrench"]):
+                    recovered_tool = "query_mom_statistics"
+                elif any(k in t_lower for k in ["wage", "salary", "datagov"]):
+                    recovered_tool = "query_datagovsg_api"
+                elif any(k in t_lower for k in ["turnover", "excel"]):
+                    recovered_tool = "fetch_mom_turnover_excel"
+                elif any(k in t_lower for k in ["policy", "kpi", "sqlite"]):
+                    recovered_tool = "fetch_internal_policy_kpis"
+
+                if recovered_tool:
+                    await self.log_step(
+                        step_type=StepType.REFLECTION,
+                        title=f"Reflection: Agentic Tool Recovery for '{t_name}'",
+                        content=f"Recovered from invalid tool name '{t_name}' by re-routing to authorized registry tool '{recovered_tool}'."
+                    )
+                    t_name = recovered_tool
+                else:
+                    await self.log_step(
+                        step_type=StepType.OBSERVATION,
+                        title=f"Observation: Skipped Unknown Tool '{t_name}'",
+                        content=f"No valid tool adapter found for '{t_name}'. Proceeding with remaining analytical pipeline."
+                    )
+                    missing_sources.append(t_name)
+                    continue
 
             # 1. Dynamic Agent Thought
             await self.log_step(
@@ -150,7 +188,7 @@ class DataExtractionAgent(BaseAgent):
             await self.log_step(
                 step_type=StepType.ACTION,
                 title=f"Tool Call: {t_name}",
-                content=f"Invoking {t_name} with target parameters: {st_params}",
+                content=f"Invoking {t_name} with parameters: {st_params}",
                 tool_name=t_name,
                 tool_input=st_params
             )
@@ -190,7 +228,7 @@ class DataExtractionAgent(BaseAgent):
                     datasets["policy_db"] = data_res
                 source_provenance["policy_db"] = src_label
 
-            # 4. Agentic Observation & Handling of Empty Results
+            # 4. Agentic Observation & Coverage Check
             if q_item and q_item.total_records > 0:
                 quality_reports.append(q_item)
                 await self.log_step(
@@ -199,11 +237,11 @@ class DataExtractionAgent(BaseAgent):
                     content=f"Acquired {q_item.total_records} records. Empirical Completeness: {q_item.completeness_score}%. Integrity verified ({q_item.missing_values_handled} missing handled, {q_item.outliers_identified} outliers audited)."
                 )
             else:
-                # Agentic Re-planning: Detected empty dataset
+                missing_sources.append(t_name)
                 await self.log_step(
                     step_type=StepType.OBSERVATION,
                     title=f"Observation: {t_name} Returned 0 Records",
-                    content=f"Tool {t_name} returned 0 matching records for parameters {st_params}. Triggering agentic fallback to verify if alternative public data or baseline series apply."
+                    content=f"Tool {t_name} returned 0 matching records for parameters {st_params}. Flagged coverage gap for orchestrator replanning."
                 )
 
         # 5. Overall Empirical Quality Score
@@ -215,12 +253,13 @@ class DataExtractionAgent(BaseAgent):
         await self.log_step(
             step_type=StepType.THOUGHT,
             title="Reasoning: Data Quality Synthesis Complete",
-            content=f"Data extraction phase completed across {len(quality_reports)} verified sources. Overall empirical quality score: {overall_quality_score}%. Handing off to Analytics Agent."
+            content=f"Data extraction phase completed across {len(quality_reports)} verified sources ({len(missing_sources)} missing). Overall empirical quality score: {overall_quality_score}%."
         )
 
         return {
             "datasets": datasets,
             "quality_reports": quality_reports,
             "provenance": source_provenance,
-            "overall_quality_score": overall_quality_score
+            "overall_quality_score": overall_quality_score,
+            "missing_sources": missing_sources
         }

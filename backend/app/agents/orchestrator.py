@@ -198,6 +198,65 @@ class WorkflowOrchestrator:
             provenance = extraction_res.get("provenance", {})
             overall_quality = extraction_res.get("overall_quality_score", 0.0)
 
+            # Coverage Check & Agentic Replanning Node:
+            # If primary time series (singstat) is empty, Coordinator replans data strategy
+            # to query Overall Economy baseline to guarantee grounded analysis.
+            singstat_data = datasets.get("singstat", [])
+            if (not singstat_data or len(singstat_data) == 0) and not plan_res.get("is_replanned", False):
+                from backend.app.models.schemas import StepType
+                await coordinator.log_step(
+                    step_type=StepType.REFLECTION,
+                    title="Reflection: Replanning Data Strategy (Coverage Gap Detected)",
+                    content=f"Primary employment series returned 0 records for sector='{sector_name}' ({start_yr}-{end_yr}). Formulating fallback replan to query Overall Economy baseline (2020-2024)."
+                )
+
+                replanned_params = dict(params)
+                replanned_params["sector"] = "Overall Economy"
+                replanned_params["start_year"] = 2020
+                replanned_params["end_year"] = 2024
+
+                replanned_plan = {
+                    "thought": "Coverage gap mitigation: shifting to authoritative Overall Economy baseline.",
+                    "subtasks": [
+                        {
+                            "task_id": "REPLAN-01",
+                            "source": "DOS SingStat",
+                            "tool_name": "query_singstat_table",
+                            "reasoning": "Acquire Overall Economy employment baseline (2020-2024).",
+                            "parameters": replanned_params
+                        },
+                        {
+                            "task_id": "REPLAN-02",
+                            "source": "MOM Statistics",
+                            "tool_name": "query_mom_statistics",
+                            "reasoning": "Acquire macro vacancies and retrenchments (2020-2024).",
+                            "parameters": replanned_params
+                        }
+                    ],
+                    "expected_hypotheses": ["Overall economy provides macro employment benchmark for comparative policy analysis."]
+                }
+
+                await self.update_session_state(
+                    status=SessionStatus.EXTRACTING,
+                    progress_pct=45,
+                    current_agent="Data Extraction Agent",
+                    current_step="Executing replanned data acquisition for Overall Economy baseline"
+                )
+
+                replan_res = await extractor.extract_sources(
+                    plan=replanned_plan,
+                    parameters=replanned_params
+                )
+
+                if replan_res["datasets"].get("singstat"):
+                    datasets["singstat"] = replan_res["datasets"]["singstat"]
+                if replan_res["datasets"].get("mom"):
+                    datasets["mom"] = replan_res["datasets"]["mom"]
+                quality_reports.extend(replan_res.get("quality_reports", []))
+                provenance.update(replan_res.get("provenance", {}))
+                params = replanned_params
+                sector_name = replanned_params["sector"]
+
             # Save quality reports to DB & broadcast
             await self.update_session_state(
                 status=SessionStatus.ANALYZING,

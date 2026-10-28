@@ -113,22 +113,39 @@ class DataCoordinatorAgent(BaseAgent):
         # Extract years (clamped to 2020-2024 coverage)
         years = [int(y) for y in re.findall(r'\b(20[1-2][0-9])\b', query)]
         if len(years) >= 2:
-            start_year = max(2020, min(years))
-            end_year = min(2024, max(years))
+            raw_start = min(years)
+            raw_end = max(years)
+            start_year = max(2020, min(raw_start, 2024))
+            end_year = min(2024, max(raw_end, 2020))
+            if start_year > end_year:
+                start_year, end_year = 2020, 2024
         elif len(years) == 1:
-            start_year = max(2020, min(years[0], 2024))
-            end_year = 2024
+            y = years[0]
+            if 2020 <= y <= 2024:
+                start_year = y
+                end_year = 2024
+            else:
+                start_year = 2020
+                end_year = 2024
         else:
             start_year = 2020
             end_year = 2024
 
-        # Extract sector focus
+        # Extract sector focus and detect multi-sector comparisons
+        detected_sectors = []
         if any(w in q_lower for w in ["finance", "banking", "financial", "insurance"]):
-            sector = "Financial & Insurance Services"
-        elif any(w in q_lower for w in ["overall", "economy", "all sector", "national"]):
-            sector = "Overall Economy"
-        else:
+            detected_sectors.append("Financial & Insurance Services")
+        if any(w in q_lower for w in ["tech", "ict", "information", "software", "digital", "communications"]):
+            detected_sectors.append("Information & Communications")
+        if any(w in q_lower for w in ["overall", "economy", "all sector", "national"]):
+            detected_sectors.append("Overall Economy")
+
+        if not detected_sectors:
             sector = "Information & Communications"
+            sectors = ["Information & Communications"]
+        else:
+            sector = detected_sectors[0]
+            sectors = detected_sectors
 
         # Determine metric focus
         focus_metrics = []
@@ -147,6 +164,7 @@ class DataCoordinatorAgent(BaseAgent):
             "start_year": start_year,
             "end_year": end_year,
             "sector": sector,
+            "sectors": sectors,
             "focus_metrics": focus_metrics
         }
 

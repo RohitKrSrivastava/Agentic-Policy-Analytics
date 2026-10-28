@@ -101,7 +101,7 @@ pytest backend/tests --cov=backend/app --cov-report=term
 ```
 
 ### Empirical Coverage Report
-Below are the actual coverage results recorded across 41 automated unit and integration tests:
+Below are the actual coverage results recorded across 47 automated unit, integration, and guardrail tests:
 
 | Module / Component | Total Statements | Missed | Test Coverage |
 |--------------------|------------------|--------|---------------|
@@ -120,6 +120,6 @@ Below are the actual coverage results recorded across 41 automated unit and inte
 | `backend/app/llm/router.py` | 53 | 9 | **83%** |
 | `backend/app/llm/local_fallback.py` | 109 | 19 | **83%** |
 | `backend/app/rag/policy_knowledge.py` | 42 | 4 | **90%** |
-| **TOTAL REPOSITORY COVERAGE** | **1,747** | **281** | **84%** |
+| **TOTAL REPOSITORY COVERAGE** | **1,981** | **305** | **85%** |
 
-**Test Result**: `41 passed in 13.22s (100% pass rate)`.
+**Test Result**: `47 passed in 9.32s (100% pass rate)`.
