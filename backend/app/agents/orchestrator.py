@@ -119,27 +119,31 @@ class WorkflowOrchestrator:
             provider_used = plan_res.get("provider_used", "local_fallback")
             total_tokens = plan_res.get("tokens", 0)
 
-            # Handle out-of-scope domain query immediately with domain guardrail
+            # Handle ambiguous queries or out-of-scope domain queries with domain guardrail
             if plan_res.get("is_out_of_scope"):
                 from backend.app.models.schemas import PolicyFinding, PolicyReport
+                is_ambig = plan_res.get("is_ambiguous", False)
+                title = "Clarification Required: Ambiguous Research Query" if is_ambig else "Domain Guardrail Notice: Query Outside Policy Scope"
+                step_title = "Clarification required: ambiguous query parameters" if is_ambig else "Domain guardrail applied: query out of scope"
+
                 guardrail_report = PolicyReport(
                     session_id=self.session_id,
                     query=query,
-                    title="Domain Guardrail Notice: Query Outside Singapore Policy Scope",
+                    title=title,
                     executive_summary=f"{plan_res.get('rejection_reason')} {plan_res.get('suggestion')}",
                     key_findings=[
                         PolicyFinding(
                             heading="Supported Data Repositories & Domain Scope",
                             body="This platform is specialized for Singapore Whole-of-Government (WOG) manpower and economic analytics. Integrated repositories include: DOS SingStat (Employment), MOM (Vacancies & Retrenchments), Data.gov.sg (Wages), and IMDA Policy DB.",
                             sentiment="neutral",
-                            statistical_evidence="Authoritative coverage: Singapore labor market and wage dynamics (2020-2024).",
+                            statistical_evidence="Authoritative coverage: Singapore labor market and wage dynamics (2020-2024) across ICT, Financial Services, and Overall Economy.",
                             citation_id="SCOPE-GUARDRAIL"
                         )
                     ],
                     statistical_metrics={},
                     policy_recommendations=[
-                        "Select a supported Singapore sector: Information & Communications, Financial Services, Manufacturing, or Economy-wide.",
-                        "Query Singapore labor metrics: employment trends, vacancies-to-unemployed ratio, retrenchments, or wage premiums.",
+                        "Select a supported Singapore sector: Information & Communications, Financial & Insurance Services, or Overall Economy.",
+                        "Query Singapore labor metrics: employment trends, vacancies-to-unemployed ratio, retrenchments, or wage benchmarks.",
                         "Specify analysis periods within 2020-2024."
                     ],
                     citations=[],
@@ -151,7 +155,7 @@ class WorkflowOrchestrator:
                     status=SessionStatus.COMPLETED,
                     progress_pct=100,
                     current_agent="Data Coordinator Agent",
-                    current_step="Domain guardrail applied: query out of scope",
+                    current_step=step_title,
                     charts=[],
                     quality_reports=[],
                     report=guardrail_report,
@@ -178,7 +182,7 @@ class WorkflowOrchestrator:
                 status=SessionStatus.EXTRACTING,
                 progress_pct=35,
                 current_agent="Data Extraction Agent",
-                current_step=f"Extracting {sector_name} data ({start_yr}-{end_yr}) across SingStat, MOM, and Data.gov.sg",
+                current_step=f"Extracting {sector_name} data ({start_yr}-{end_yr}) across selected repositories",
                 provider_used=provider_used,
                 tokens_added=total_tokens
             )
@@ -192,14 +196,14 @@ class WorkflowOrchestrator:
             datasets = extraction_res["datasets"]
             quality_reports = extraction_res["quality_reports"]
             provenance = extraction_res.get("provenance", {})
-            overall_quality = extraction_res.get("overall_quality_score", 98.0)
+            overall_quality = extraction_res.get("overall_quality_score", 0.0)
 
             # Save quality reports to DB & broadcast
             await self.update_session_state(
                 status=SessionStatus.ANALYZING,
                 progress_pct=65,
                 current_agent="Analytics Agent",
-                current_step="Running econometric regressions & RAG policy synthesis",
+                current_step=f"Running econometric models & policy synthesis for {sector_name}",
                 quality_reports=quality_reports
             )
 

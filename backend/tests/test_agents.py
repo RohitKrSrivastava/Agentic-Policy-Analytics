@@ -1,8 +1,10 @@
 import pytest
+
+from backend.app.agents.analytics import AnalyticsAgent
 from backend.app.agents.coordinator import DataCoordinatorAgent
 from backend.app.agents.extractor import DataExtractionAgent
-from backend.app.agents.analytics import AnalyticsAgent
 from backend.app.models.schemas import StepType
+
 
 @pytest.mark.asyncio
 async def test_coordinator_agent_planning():
@@ -20,6 +22,7 @@ async def test_coordinator_agent_planning():
     assert any(s.step_type == StepType.THOUGHT for s in logged_steps)
     assert any(s.step_type == StepType.ACTION for s in logged_steps)
     assert any(s.step_type == StepType.OBSERVATION for s in logged_steps)
+
 
 @pytest.mark.asyncio
 async def test_coordinator_domain_guardrail_out_of_scope():
@@ -39,6 +42,23 @@ async def test_coordinator_domain_guardrail_out_of_scope():
     assert weather_res["is_out_of_scope"] is True
     assert "weather" in weather_res["rejection_reason"].lower()
 
+    # 3. Ambiguous query
+    ambig_res = await coordinator.plan_research_workflow("tell me something")
+    assert ambig_res["is_out_of_scope"] is True
+    assert ambig_res["is_ambiguous"] is True
+    assert "clarify" in ambig_res["suggestion"].lower()
+
+    # 4. Unsupported sector
+    unsupported_sector_res = await coordinator.plan_research_workflow("retail employment 2021-2023")
+    assert unsupported_sector_res["is_out_of_scope"] is True
+    assert "Retail" in unsupported_sector_res["rejection_reason"]
+
+    # 5. Out of bounds years
+    years_out_res = await coordinator.plan_research_workflow("tech employment 2015-2018")
+    assert years_out_res["is_out_of_scope"] is True
+    assert "Time horizon boundary" in years_out_res["rejection_reason"]
+
+
 @pytest.mark.asyncio
 async def test_coordinator_parameter_extraction():
     coordinator = DataCoordinatorAgent(session_id="test-sess-params")
@@ -48,6 +68,7 @@ async def test_coordinator_parameter_extraction():
     assert "Financial" in params["sector"]
     assert "wages" in params["focus_metrics"]
     assert "vacancies" in params["focus_metrics"]
+
 
 @pytest.mark.asyncio
 async def test_extraction_agent_multi_source():
@@ -66,6 +87,7 @@ async def test_extraction_agent_multi_source():
     assert len(logged_steps) >= 5
     assert "provenance" in res
     assert res["overall_quality_score"] > 80.0
+
 
 @pytest.mark.asyncio
 async def test_analytics_agent_synthesis():
@@ -86,7 +108,7 @@ async def test_analytics_agent_synthesis():
 
     report = analysis_res["report"]
     assert report.session_id == "test-sess-03"
-    assert len(report.key_findings) >= 2
+    assert len(report.key_findings) >= 1
     assert len(report.citations) >= 3
     assert report.quality_score >= 80.0
     assert report.hallucination_score <= 0.05

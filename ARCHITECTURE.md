@@ -12,7 +12,7 @@ The platform follows a clean, decoupled **Hexagonal (Ports and Adapters)** archi
 
 ```mermaid
 flowchart TD
-    subgraph Client_Layer ["Presentation Layer: Next.js / React + TypeScript + Tailwind CSS"]
+    subgraph Client_Layer ["Presentation Layer: React 18 / Vite / TypeScript + Tailwind CSS"]
         UI["Natural Language Query Input & Preset Inquiries"]
         MON["Real-Time ReAct Activity Monitor"]
         DASH["Interactive Charts: Recharts & KPIs"]
