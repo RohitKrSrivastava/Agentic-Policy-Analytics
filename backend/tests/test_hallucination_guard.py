@@ -262,3 +262,92 @@ def test_sector_isolated_ground_truth_rejection():
     assert "Financial & Insurance Services" in mismatch_disc["reason"]
     assert "Information & Communications" in mismatch_disc["reason"] or "tech" in mismatch_disc["claimed_context"].lower()
 
+
+def test_pruning_all_claims_produces_honest_unverified_notice():
+    """
+    Validates that when all findings are ungrounded and pruned, _prune_unverified_claims:
+    - Inserts an explicit cautionary notice ("Factual Audit Notice: No Claims Verified").
+    - Does NOT claim success or positive sentiment.
+    - Sets executive summary to an honest audit notice.
+    """
+    from backend.app.agents.analytics import AnalyticsAgent
+    agent = AnalyticsAgent("test-audit-prune")
+
+    fabricated_report = {
+        "title": "Fabricated Policy Analysis",
+        "executive_summary": "Employment grew by 999.9% adding 1,000,000 jobs with S$99,999 wages.",
+        "key_findings": [
+            {
+                "heading": "Fabricated Finding",
+                "body": "999.9% growth with 1,000,000 jobs.",
+                "statistical_evidence": "999.9%",
+                "citation_id": "FAKE-01"
+            }
+        ]
+    }
+    discrepancies = [
+        {"token": "999.9%", "reason": "Fabricated metric"},
+        {"token": "1,000,000", "reason": "Fabricated headcount"},
+        {"token": "S$99,999", "reason": "Fabricated salary"}
+    ]
+
+    pruned = agent._prune_unverified_claims(fabricated_report, discrepancies)
+    findings = pruned.get("key_findings", [])
+    assert len(findings) == 1
+    notice = findings[0]
+    assert "No Claims Verified" in notice["heading"]
+    assert notice["sentiment"] == "cautionary"
+    assert "No empirical claims could be verified" in notice["body"]
+    assert "Workforce expansion verified" not in notice["body"]
+    assert "Notice: No quantitative claims could be verified" in pruned.get("executive_summary", "")
+
+
+def test_comparative_finding_dynamic_wording_divergent_growth():
+    """
+    Validates that _generate_comparative_finding uses dynamic wording based on signs:
+    - When sector A is positive and sector B is negative, reports expansion vs contraction with neutral sentiment.
+    """
+    from backend.app.agents.analytics import _generate_comparative_finding
+
+    res_a = {"tech_cagr": 8.14, "net_jobs_added": 56700}
+    res_b = {"tech_cagr": -2.50, "net_jobs_added": -8500}
+
+    finding = _generate_comparative_finding(
+        sec_a="Tech Sector",
+        sec_b="Retail Sector",
+        res_a=res_a,
+        res_b=res_b,
+        start_year=2020,
+        end_year=2024
+    )
+    assert finding["sentiment"] == "neutral"
+    assert "expanded at a 8.1% CAGR (+56,700 net jobs)" in finding["body"]
+    assert "contracted at a -2.5% CAGR (-8,500 net jobs)" in finding["body"]
+    assert "workforce contraction" in finding["body"]
+    assert "Both sectors sustained positive employment expansion" not in finding["body"]
+
+
+def test_comparative_finding_dynamic_wording_both_negative():
+    """
+    Validates that _generate_comparative_finding uses cautionary sentiment and contraction wording
+    when both sectors experience negative growth.
+    """
+    from backend.app.agents.analytics import _generate_comparative_finding
+
+    res_a = {"tech_cagr": -1.20, "net_jobs_added": -3200}
+    res_b = {"tech_cagr": -4.80, "net_jobs_added": -12000}
+
+    finding = _generate_comparative_finding(
+        sec_a="Construction",
+        sec_b="Manufacturing",
+        res_a=res_a,
+        res_b=res_b,
+        start_year=2020,
+        end_year=2024
+    )
+    assert finding["sentiment"] == "cautionary"
+    assert "contracted at a -1.2% CAGR (-3,200 net jobs)" in finding["body"]
+    assert "contracted at a -4.8% CAGR (-12,000 net jobs)" in finding["body"]
+    assert "Both sectors experienced workforce contraction or restructuring" in finding["body"]
+    assert "Both sectors sustained positive employment expansion" not in finding["body"]
+

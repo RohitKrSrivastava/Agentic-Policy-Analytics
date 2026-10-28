@@ -39,7 +39,7 @@ flowchart TD
         OAI["OpenAI GPT-4o-mini"]
         GEM["Google Cloud Gemini 1.5 Flash"]
         BED["AWS Bedrock Claude 3.5 Sonnet"]
-        LOCAL["Local Heuristic Engine: Offline/Air-Gap Safe"]
+        LOCAL["Local Heuristic Engine: Offline Deterministic Mode"]
     end
 
     subgraph Tools_Layer ["Tools & Connectors Layer"]
@@ -84,11 +84,29 @@ flowchart TD
 
 ## 2. Autonomous Multi-Agent System & ReAct Pattern
 
-### Custom Asynchronous Blackboard State Machine (Architectural Decision)
-Rather than introducing external orchestration frameworks like LangGraph or CrewAI, the platform implements an **explicit, custom asynchronous Blackboard State Machine** in Python / FastAPI. This design choice provides four key advantages for government policy applications:
-1. **Zero Black-Box Overhead**: Full visibility and deterministic debugging over every agent deliberation cycle without framework abstraction layers.
-2. **Native WebSocket Streaming**: Fine-grained, real-time broadcasts of ReAct steps (`thought`, `action`, `observation`, `reflection`) streamed directly to the frontend monitor as they occur.
-3. **Thread-Safe Audit Trail**: Immutable persistence of all agent thoughts, tool inputs, and tool outputs directly into SQLite for Whole-of-Government (WOG) accountability.
+### LangGraph-Aligned Asynchronous StateGraph Architecture (Architectural Decision)
+The platform structures workflow execution as a compiled asynchronous **StateGraph** (`backend/app/agents/state_graph.py`), adhering directly to LangGraph conventions while maintaining lightweight native implementation. The execution graph coordinates nodes, conditional branch routers, and cyclic replanning edges:
+
+```mermaid
+flowchart LR
+    START((__start__)) --> PLAN[Node: Plan]
+    PLAN --> ROUTE_PLAN{route_plan}
+    ROUTE_PLAN -->|Valid Query| EXTRACT[Node: Extract]
+    ROUTE_PLAN -->|Out of Scope / Clarify| PUBLISH[Node: Publish]
+    EXTRACT --> CHECK{Node: Check Coverage}
+    CHECK --> ROUTE_COV{route_coverage}
+    ROUTE_COV -->|Complete Data| ANALYZE[Node: Analyze]
+    ROUTE_COV -->|Missing Source| REPLAN[Node: Replan]
+    REPLAN -->|Loop (max 2)| CHECK
+    REPLAN -->|Exhausted| ANALYZE
+    ANALYZE --> PUBLISH
+    PUBLISH --> END((__end__))
+```
+
+This design provides four key advantages for government policy applications:
+1. **Zero Black-Box Overhead**: Full visibility and deterministic debugging over every graph state transition without external dependency bloat.
+2. **Native WebSocket Streaming**: Fine-grained, real-time broadcasts of ReAct steps (`thought`, `action`, `observation`, `reflection`) streamed directly to the frontend monitor during each node execution.
+3. **Thread-Safe Audit Trail**: Immutable persistence of all agent thoughts, tool inputs, tool outputs, and LLM replanning reflections directly into SQLite for Whole-of-Government (WOG) accountability.
 4. **Typed Schema Enforcement**: Every authorized tool binds to a strict Pydantic model (`tool.args_schema.model_validate`), ensuring malformed arguments are trapped at the boundary.
 
 ---
@@ -113,20 +131,25 @@ Rather than introducing external orchestration frameworks like LangGraph or Crew
   - `Duplicate Call Guard`: Enforces step limits (max 8 steps) and blocks identical consecutive invocations.
   - `Deterministic Plan Fallback`: Automatically activates if `local_fallback` is active or if LLM JSON parsing fails consecutively.
 
-### 3. Orchestrator Generalized Replanning Node
+### 3. Orchestrator Generalized Replanning Node & Transparent Substitution
 - **Responsibility**: Inspects acquired datasets for coverage gaps across **all critical sources** (SingStat employment, MOM tightness, Data.gov.sg wages).
-- **Replanning Logic (Max 2 Iterations)**:
-  - If a source is empty, the Coordinator logs `StepType.REFLECTION` detailing the coverage gap.
-  - Automatically executes remediation: widens temporal observation windows to 2020–2024, switches sector focus to the `Overall Economy` baseline, or queries national wage medians.
-  - Merges replanned datasets into blackboard state so downstream econometric models remain fully grounded.
+- **LLM-Driven Replanning (Max 2 Iterations)**:
+  - If a source is empty, the Orchestrator triggers `CoordinatorAgent.decide_replan_action`, prompting the LLM to autonomously evaluate the coverage gap and choose a remediation strategy (`switch_sector`, `widen_window`, `substitute_source`).
+  - Merges replanned datasets into state and records substitutions in `state["substitutions"]`.
+  - **Transparent Substitution Disclosure**:
+    - **Executive Summary**: Explicitly prefixes summaries with `[Data Substitution Notice: Sector '{orig}' had missing source data and was substituted with '{repl}' baseline data]`.
+    - **Dedicated Finding**: Automatically injects a cautionary finding at index 0: `"Data Substitution Notice: '{orig}' Replaced with '{repl}' Baseline"`.
+    - **Citation Provenance**: Appends `(Substituted proxy for missing '{orig}')` directly to dataset titles and retrieval access methods.
 
-### 4. Analytics Agent & Self-Correction Repair Loop
-- **Responsibility**: Executes econometric modeling (CAGR, Beveridge curve vacancy-to-retrenchment correlation $r$, $p$-value, 95% forecast prediction intervals), policy RAG retrieval, and policy brief synthesis.
-- **Self-Correction Loop**:
+### 4. Analytics Agent, Dynamic Comparative Wording & Self-Correction
+- **Responsibility**: Executes econometric modeling (CAGR, Beveridge curve vacancy-to-retrenchment correlation $r$, $p$-value, 95% forecast prediction intervals), multi-sector comparative evaluations, policy RAG retrieval, and policy brief synthesis.
+- **Dynamic Comparative Wording**:
+  - In multi-sector evaluations (e.g. Tech vs Finance), the agent dynamically evaluates the sign of CAGR and net employment changes for each sector (`expanded` vs `contracted`).
+  - Accurately conveys divergent trends (e.g. Tech expanded whereas Construction contracted) rather than assuming uniform positive expansion.
+- **Self-Correction & Honest Pruning**:
   - Submits synthesized report to the `HallucinationVerificationGuard`.
   - If discrepancies or ungrounded claims are detected, executes up to 2 repair iterations with targeted repair prompts.
-  - Deterministic fallback: prunes ungrounded sentences using sentence-level boundary extraction if hallucinated tokens persist.
-  - Emits `StepType.REFLECTION` for each self-correction iteration and records the final `verification_status` (`verified`, `partially_verified`, `unverifiable`).
+  - **Honest Pruning Notice**: If all synthesized claims fail factual verification and are pruned, the system generates an explicit `"Factual Audit Notice: No Claims Verified"` cautionary finding with 0 verified claims and forces `verification_status = "unverified"`, eliminating synthetic ungrounded claims.
 
 ### 5. Hallucination Verification Guard
 - **Responsibility**: Performs automated, deterministic ground-truth auditing on the synthesized report before final delivery.
@@ -207,7 +230,7 @@ erDiagram
 
 | Decision | Choice | Rationale & Trade-Offs |
 |----------|--------|------------------------|
-| **Agentic Framework** | Custom Observable ReAct State Machine | Rather than opaque third-party black boxes, a clean state machine provides zero setup friction, explicit WebSocket event emission, complete deterministic testability, and sub-second execution speed. |
+| **Agentic Framework** | LangGraph-Aligned StateGraph with Observable ReAct | Adheres strictly to the LangGraph `StateGraph` pattern (`plan` -> `extract` -> `check_coverage` -> `replan` -> `analyze` -> `publish`) implemented in clean Python. Provides zero setup friction, deterministic testing, fine-grained WebSocket telemetry, and explicit cyclic replanning. |
 | **Backend Framework** | FastAPI (Python 3.11+) | Async native, automatic OpenAPI documentation, high-performance Starlette ASGI foundation, and native support for asynchronous background tasks and WebSockets. |
 | **Frontend Framework** | Vite + React + TypeScript + Tailwind CSS | Instant Hot Module Replacement (HMR), sub-8-second production builds, complete type safety matching backend Pydantic schemas, and lightweight zero-bloat runtime. |
 | **Statistical Engine** | NumPy + Pandas + Scipy | Deterministic, auditable, high-performance numerical routines for CAGR, linear regression, and IQR anomaly detection without hallucination risk. |

@@ -39,6 +39,57 @@ def _fmt_float(val: float | None, decimals: int = 1, default: str = "N/A") -> st
         return default
 
 
+def _generate_comparative_finding(
+    sec_a: str,
+    sec_b: str,
+    res_a: dict[str, Any],
+    res_b: dict[str, Any],
+    start_year: int,
+    end_year: int
+) -> dict[str, Any]:
+    cagr_val_a = res_a.get("tech_cagr")
+    cagr_val_b = res_b.get("tech_cagr")
+    jobs_val_a = res_a.get("net_jobs_added")
+    jobs_val_b = res_b.get("net_jobs_added")
+
+    cagr_a_str = _fmt_float(cagr_val_a)
+    cagr_b_str = _fmt_float(cagr_val_b)
+    jobs_a_str = _fmt_int(jobs_val_a)
+    jobs_b_str = _fmt_int(jobs_val_b)
+
+    verb_a = "expanded" if (cagr_val_a or 0) >= 0 else "contracted"
+    verb_b = "expanded" if (cagr_val_b or 0) >= 0 else "contracted"
+    sign_jobs_a = f"+{jobs_a_str}" if (jobs_val_a or 0) >= 0 else jobs_a_str
+    sign_jobs_b = f"+{jobs_b_str}" if (jobs_val_b or 0) >= 0 else jobs_b_str
+
+    is_a_pos = (cagr_val_a or 0) > 0
+    is_b_pos = (cagr_val_b or 0) > 0
+
+    if is_a_pos and is_b_pos:
+        summary_conclusion = "Both sectors sustained positive employment expansion relative to national baseline."
+        sentiment = "positive"
+    elif is_a_pos and not is_b_pos:
+        summary_conclusion = f"{sec_a} sustained positive workforce expansion, whereas {sec_b} experienced workforce contraction, reflecting divergent sectoral trajectories."
+        sentiment = "neutral"
+    elif not is_a_pos and is_b_pos:
+        summary_conclusion = f"{sec_b} sustained positive workforce expansion, whereas {sec_a} experienced workforce contraction, reflecting divergent sectoral trajectories."
+        sentiment = "neutral"
+    else:
+        summary_conclusion = "Both sectors experienced workforce contraction or restructuring over the analytical timeframe."
+        sentiment = "cautionary"
+
+    return {
+        "heading": f"Cross-Sector Comparative Dynamics: {sec_a} vs {sec_b}",
+        "body": (
+            f"Over the {start_year}-{end_year} observation window, {sec_a} {verb_a} at a {cagr_a_str}% CAGR ({sign_jobs_a} net jobs), "
+            f"while {sec_b} {verb_b} at a {cagr_b_str}% CAGR ({sign_jobs_b} net jobs). {summary_conclusion}"
+        ),
+        "sentiment": sentiment,
+        "statistical_evidence": f"{sec_a} CAGR: {cagr_a_str}% ({sign_jobs_a} jobs) vs {sec_b} CAGR: {cagr_b_str}% ({sign_jobs_b} jobs).",
+        "citation_id": "SINGSTAT-COMPARATIVE"
+    }
+
+
 class AnalyticsAgent(BaseAgent):
     """
     Analytics Agent:
@@ -342,20 +393,14 @@ Output format must be valid JSON matching this schema:
             sec_b = sectors[1]
             res_a = sector_analytics.get(sec_a, {})
             res_b = sector_analytics.get(sec_b, {})
-            cagr_a = _fmt_float(res_a.get('tech_cagr'))
-            cagr_b = _fmt_float(res_b.get('tech_cagr'))
-            jobs_a = _fmt_int(res_a.get('net_jobs_added'))
-            jobs_b = _fmt_int(res_b.get('net_jobs_added'))
-            comp_finding = {
-                "heading": f"Cross-Sector Comparative Dynamics: {sec_a} vs {sec_b}",
-                "body": (
-                    f"Over the {start_year}-{end_year} observation window, {sec_a} expanded at a {cagr_a}% CAGR (+{jobs_a} net jobs), "
-                    f"while {sec_b} grew at a {cagr_b}% CAGR (+{jobs_b} net jobs). Both sectors sustained positive employment expansion relative to national baseline."
-                ),
-                "sentiment": "positive" if ((res_a.get('tech_cagr') or 0) > 0 and (res_b.get('tech_cagr') or 0) > 0) else "neutral",
-                "statistical_evidence": f"{sec_a} CAGR: {cagr_a}% (+{jobs_a} jobs) vs {sec_b} CAGR: {cagr_b}% (+{jobs_b} jobs).",
-                "citation_id": "SINGSTAT-COMPARATIVE"
-            }
+            comp_finding = _generate_comparative_finding(
+                sec_a=sec_a,
+                sec_b=sec_b,
+                res_a=res_a,
+                res_b=res_b,
+                start_year=start_year,
+                end_year=end_year
+            )
             if "key_findings" in report_dict and isinstance(report_dict["key_findings"], list):
                 report_dict["key_findings"].insert(0, comp_finding)
 
@@ -439,23 +484,54 @@ Output format must be valid JSON matching this schema:
                 sec_b = sectors[1]
                 res_a = sector_analytics.get(sec_a, {})
                 res_b = sector_analytics.get(sec_b, {})
-                cagr_a = _fmt_float(res_a.get('tech_cagr'))
-                cagr_b = _fmt_float(res_b.get('tech_cagr'))
-                jobs_a = _fmt_int(res_a.get('net_jobs_added'))
-                jobs_b = _fmt_int(res_b.get('net_jobs_added'))
-                comp_finding = {
-                    "heading": f"Cross-Sector Comparative Dynamics: {sec_a} vs {sec_b}",
-                    "body": (
-                        f"Over the {start_year}-{end_year} observation window, {sec_a} expanded at a {cagr_a}% CAGR (+{jobs_a} net jobs), "
-                        f"while {sec_b} grew at a {cagr_b}% CAGR (+{jobs_b} net jobs). Both sectors sustained positive employment expansion relative to national baseline."
-                    ),
-                    "sentiment": "positive" if ((res_a.get('tech_cagr') or 0) > 0 and (res_b.get('tech_cagr') or 0) > 0) else "neutral",
-                    "statistical_evidence": f"{sec_a} CAGR: {cagr_a}% (+{jobs_a} jobs) vs {sec_b} CAGR: {cagr_b}% (+{jobs_b} jobs).",
-                    "citation_id": "SINGSTAT-COMPARATIVE"
-                }
+                comp_finding = _generate_comparative_finding(
+                    sec_a=sec_a,
+                    sec_b=sec_b,
+                    res_a=res_a,
+                    res_b=res_b,
+                    start_year=start_year,
+                    end_year=end_year
+                )
                 if "key_findings" not in report_dict or not isinstance(report_dict["key_findings"], list):
                     report_dict["key_findings"] = []
                 report_dict["key_findings"].insert(0, comp_finding)
+
+        # Disclose any replanned data substitutions explicitly in the report
+        substitutions = params.get("substitutions", [])
+        if substitutions:
+            sector_subs = [s for s in substitutions if s.get("type") == "sector"]
+            if sector_subs:
+                orig_s = sector_subs[0].get("original", "")
+                repl_s = sector_subs[0].get("substituted", "")
+                sub_notice = f"[Data Substitution Notice: Specific records for requested sector '{orig_s}' were unavailable in repository; '{repl_s}' figures were substituted as an empirical macroeconomic proxy.]"
+                current_summary = report_dict.get("executive_summary", "")
+                if sub_notice not in current_summary:
+                    report_dict["executive_summary"] = f"{sub_notice} {current_summary}".strip()
+
+            for sub in substitutions:
+                orig = sub.get("original", "")
+                repl = sub.get("substituted", "")
+                reason = sub.get("reason", "Requested target records unavailable in public sector repository")
+                sub_finding = {
+                    "heading": f"Data Substitution Notice: '{orig}' Replaced with '{repl}' Baseline",
+                    "body": (
+                        f"Official Singapore government datasets in this repository contained 0 matching records for requested target '{orig}'. "
+                        f"To ensure research continuity without silent failure, the agentic recovery pipeline substituted '{repl}' as an empirical macroeconomic proxy ({reason}). "
+                        f"All metrics, wage benchmarks, and employment trajectories below reflect this substituted baseline."
+                    ),
+                    "sentiment": "cautionary",
+                    "statistical_evidence": f"Zero empirical records found for '{orig}'. Analysis conducted using '{repl}' benchmarks.",
+                    "citation_id": "DATA-SUBSTITUTION-NOTICE"
+                }
+                if "key_findings" not in report_dict or not isinstance(report_dict["key_findings"], list):
+                    report_dict["key_findings"] = []
+                if not any(f.get("heading", "") == sub_finding["heading"] for f in report_dict["key_findings"] if isinstance(f, dict)):
+                    report_dict["key_findings"].insert(0, sub_finding)
+
+        # If all draft claims failed verification and only unverified notices remain, force unverified status
+        if any("No Claims Verified" in f.get("heading", "") for f in report_dict.get("key_findings", []) if isinstance(f, dict)):
+            verification_result["verification_status"] = "unverified"
+            verification_result["summary"] = "All draft quantitative claims were ungrounded and pruned by the factuality guard."
 
         await self.log_step(
             step_type=StepType.OBSERVATION,
@@ -463,31 +539,34 @@ Output format must be valid JSON matching this schema:
             content=f"Factuality Audit Complete: {verification_result['summary']} Hallucination Score: {verification_result['hallucination_score']}. Verified facts: {len(verification_result['verified_facts'])}, Discrepancies: {len(verification_result['discrepancies'])}."
         )
 
-        # Assemble Citations dynamically based on actual acquired sources
+        # Assemble Citations dynamically based on actual acquired sources (including substitution annotations)
         citations: list[PolicyCitation] = []
+        sector_subs = [s for s in substitutions if s.get("type") == "sector"]
+        sub_citation_note = f" (Substituted proxy for missing '{sector_subs[0]['original']}')" if sector_subs else ""
+
         if "singstat" in datasets:
             citations.append(PolicyCitation(
                 source_agency="Department of Statistics Singapore (DOS)",
-                dataset_title=f"Table 14.1 Employment in {sector}",
+                dataset_title=f"Table 14.1 Employment in {sector}{sub_citation_note}",
                 time_period=f"{start_year}-Q1 to {end_year}-Q4",
                 citation_id="SINGSTAT-M015661",
-                access_method=provenance.get("singstat", "DOS SingStat CSV")
+                access_method=f"{provenance.get('singstat', 'DOS SingStat CSV')}{sub_citation_note}"
             ))
         if "mom" in datasets:
             citations.append(PolicyCitation(
                 source_agency="Ministry of Manpower Singapore (MOM)",
-                dataset_title="Labour Market Report: Job Vacancies, Retrenchments & Re-entry Rates",
+                dataset_title=f"Labour Market Report: Job Vacancies, Retrenchments & Re-entry Rates{sub_citation_note}",
                 time_period=f"{start_year}-Q1 to {end_year}-Q4",
                 citation_id="MOM-LMR-2024",
-                access_method=provenance.get("mom", "MOM Research & Statistics JSON")
+                access_method=f"{provenance.get('mom', 'MOM Research & Statistics JSON')}{sub_citation_note}"
             ))
         if "wages" in datasets:
             citations.append(PolicyCitation(
                 source_agency="GovTech / Data.gov.sg",
-                dataset_title=f"Gross Monthly Income from Work ({sector})",
+                dataset_title=f"Gross Monthly Income from Work ({sector}){sub_citation_note}",
                 time_period=f"{start_year}-{end_year} Annual Series",
                 citation_id="DATAGOVSG-WAGES-V2",
-                access_method=provenance.get("wages", "Data.gov.sg API v2")
+                access_method=f"{provenance.get('wages', 'Data.gov.sg API v2')}{sub_citation_note}"
             ))
         if "excel_turnover" in datasets:
             citations.append(PolicyCitation(
@@ -587,7 +666,11 @@ Rules:
             s for s in sentences
             if not any(t in s for t in tokens_to_prune)
         ]
-        cleaned["executive_summary"] = " ".join(kept_sentences) if kept_sentences else "Empirical workforce trends verified against source data."
+        cleaned["executive_summary"] = (
+            " ".join(kept_sentences)
+            if kept_sentences
+            else "Notice: No quantitative claims could be verified against source datasets. All draft empirical statements failed factuality verification and were pruned."
+        )
 
         kept_findings = []
         for f in cleaned.get("key_findings", []):
@@ -598,11 +681,11 @@ Rules:
                     kept_findings.append(f)
         cleaned["key_findings"] = kept_findings or [
             {
-                "heading": "Verified Historical Trajectory",
-                "body": "Workforce expansion verified across public sector repositories.",
-                "sentiment": "positive",
-                "statistical_evidence": "Ground-truth verified.",
-                "citation_id": "SINGSTAT-M015661"
+                "heading": "Factual Audit Notice: No Claims Verified",
+                "body": "No empirical claims could be verified against authoritative public sector datasets. All quantitative figures in the draft report failed factuality verification and were pruned by the factuality guard.",
+                "sentiment": "cautionary",
+                "statistical_evidence": "Zero empirical claims verified against ground truth.",
+                "citation_id": "AUDIT-UNVERIFIED-NOTICE"
             }
         ]
         return cleaned

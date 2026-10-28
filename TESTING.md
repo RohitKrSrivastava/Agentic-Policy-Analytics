@@ -29,9 +29,9 @@ flowchart TD
 - [`backend/tests/test_tools.py`](backend/tests/test_tools.py): Validates SingStat CSV extraction, MOM JSON extraction, Data.gov.sg API v2 connectors with schema validation, MOM Excel parsing, SQLite DB queries, CAGR calculations, and regression functions.
 - [`backend/tests/test_data_quality.py`](backend/tests/test_data_quality.py): Validates column snake_case standardization, missing value forward-fill + median imputation, IQR anomaly capping, and empirical completeness calculation without artificial clamping.
 - [`backend/tests/test_agents.py`](backend/tests/test_agents.py): Tests individual agents (Coordinator, Extraction, Analytics) for ReAct step emissions (`thought`, `action`, `observation`), parameter extraction, and domain guardrails on out-of-scope queries (e.g. Malaysia, weather).
-- [`backend/tests/test_multi_agent_workflow.py`](backend/tests/test_multi_agent_workflow.py): End-to-end integration test verifying that `WorkflowOrchestrator` executes parameterized workflows through `PLANNING` -> `EXTRACTING` -> `ANALYZING` -> `COMPLETED`, as well as generalized replanning on coverage gaps.
+- [`backend/tests/test_multi_agent_workflow.py`](backend/tests/test_multi_agent_workflow.py): End-to-end integration test verifying that `WorkflowOrchestrator` executes compiled LangGraph `StateGraph` workflows through `plan` -> `extract` -> `check_coverage` -> `replan` -> `analyze` -> `publish`, as well as generalized LLM replanning on coverage gaps and transparent data substitution disclosures.
 - [`backend/tests/test_llm_fallback.py`](backend/tests/test_llm_fallback.py): Tests multi-cloud fallback cascades (OpenAI failure triggers Gemini, Bedrock, and local heuristic engine).
-- [`backend/tests/test_hallucination_guard.py`](backend/tests/test_hallucination_guard.py): Tests source-grounded factuality verification, adversarial fabrication detection (populating discrepancies for inflated headcounts or wages), subtle numeric mutation catching (e.g. S$17,350 vs S$7,350), and dynamic ground truth datasets.
+- [`backend/tests/test_hallucination_guard.py`](backend/tests/test_hallucination_guard.py): Tests source-grounded factuality verification, sector-keyed ground truth partitioning, honest unverified pruning notice generation, dynamic two-sector comparative growth wording, adversarial fabrication detection, and subtle numeric mutation catching.
 - [`backend/tests/test_scripted_fake_provider.py`](backend/tests/test_scripted_fake_provider.py): Verifies ReAct robustness using `ScriptedFakeProvider` against hallucinated tool names, fabricated numerical claims, malformed JSON outputs, and empty data handling.
 - [`backend/tests/test_live_llm_golden_set.py`](backend/tests/test_live_llm_golden_set.py): Evaluates 20 realistic Singapore policy queries across ICT, finance, out-of-window dates, and ambiguous inputs, and performs a 5-run stochastic temperature 0.7 variance test.
 - [`backend/tests/test_api_endpoints.py`](backend/tests/test_api_endpoints.py): Tests FastAPI REST endpoints, background task dispatch, and session retrieval.
@@ -109,32 +109,42 @@ pytest backend/tests --cov=backend/app --cov-report=term
 ```
 
 ### Empirical Coverage Report
-Below are the actual coverage results recorded across 55 automated backend unit, integration, ReAct, and guardrail tests:
+Below are the actual coverage results recorded across 59 automated backend unit, integration, ReAct, StateGraph, and guardrail tests:
 
 | Module / Component | Total Statements | Missed | Test Coverage |
 |--------------------|------------------|--------|---------------|
-| `backend/app/agents/analytics.py` | 193 | 15 | **92%** |
+| `backend/app/agents/analytics.py` | 236 | 22 | **91%** |
 | `backend/app/agents/base_agent.py` | 20 | 0 | **100%** |
-| `backend/app/agents/coordinator.py` | 110 | 6 | **95%** |
+| `backend/app/agents/coordinator.py` | 123 | 12 | **90%** |
 | `backend/app/agents/extractor.py` | 219 | 60 | **73%** |
-| `backend/app/agents/orchestrator.py` | 141 | 11 | **92%** |
+| `backend/app/agents/orchestrator.py` | 183 | 15 | **92%** |
+| `backend/app/agents/state_graph.py` | 50 | 2 | **96%** |
 | `backend/app/agents/tools_registry.py` | 66 | 5 | **92%** |
+| `backend/app/api/endpoints/agents.py` | 10 | 2 | **80%** |
 | `backend/app/api/endpoints/analysis.py` | 45 | 7 | **84%** |
-| `backend/app/api/endpoints/export.py` | 80 | 3 | **96%** |
 | `backend/app/api/endpoints/datasets.py` | 24 | 1 | **96%** |
+| `backend/app/api/endpoints/export.py` | 80 | 3 | **96%** |
 | `backend/app/api/endpoints/llm_status.py` | 10 | 0 | **100%** |
-| `backend/app/evaluation/hallucination_guard.py` | 298 | 13 | **96%** |
-| `backend/app/tools/data_quality.py` | 41 | 1 | **98%** |
-| `backend/app/tools/statistical_engine.py` | 191 | 15 | **92%** |
-| `backend/app/tools/government_sources.py` | 145 | 42 | **71%** |
+| `backend/app/api/router.py` | 8 | 0 | **100%** |
+| `backend/app/config.py` | 27 | 0 | **100%** |
 | `backend/app/core/database.py` | 54 | 4 | **93%** |
+| `backend/app/core/websocket_manager.py` | 51 | 27 | **47%** |
+| `backend/app/evaluation/hallucination_guard.py` | 298 | 13 | **96%** |
+| `backend/app/llm/base.py` | 19 | 0 | **100%** |
+| `backend/app/llm/bedrock_provider.py` | 34 | 19 | **44%** |
+| `backend/app/llm/gemini_provider.py` | 51 | 25 | **51%** |
+| `backend/app/llm/local_fallback.py` | 171 | 37 | **78%** |
+| `backend/app/llm/openai_provider.py` | 43 | 11 | **74%** |
 | `backend/app/llm/router.py` | 61 | 10 | **84%** |
-| `backend/app/llm/local_fallback.py` | 164 | 34 | **79%** |
-| `backend/app/rag/policy_knowledge.py` | 42 | 4 | **90%** |
+| `backend/app/main.py` | 68 | 31 | **54%** |
 | `backend/app/models/schemas.py` | 59 | 0 | **100%** |
-| **TOTAL REPOSITORY COVERAGE** | **2,274** | **346** | **84.78%** |
+| `backend/app/rag/policy_knowledge.py` | 42 | 4 | **90%** |
+| `backend/app/tools/data_quality.py` | 41 | 1 | **98%** |
+| `backend/app/tools/government_sources.py` | 145 | 42 | **71%** |
+| `backend/app/tools/statistical_engine.py` | 191 | 15 | **92%** |
+| **TOTAL REPOSITORY COVERAGE** | **2,429** | **368** | **84.85%** |
 
-**Backend Test Result**: `55 passed in 18.80s (100% pass rate)`.
+**Backend Test Result**: `59 passed in 22.10s (100% pass rate)`.
 
 ---
 

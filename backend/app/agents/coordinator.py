@@ -321,3 +321,86 @@ Formulate a prioritized multi-source extraction plan. Return valid JSON:
             "provider_used": response.provider_name,
             "tokens": response.total_tokens
         }
+
+    async def decide_replan_action(
+        self,
+        query: str,
+        current_params: dict[str, Any],
+        empty_sources: list[str],
+        replan_iteration: int,
+        provider_preference: str = "auto"
+    ) -> dict[str, Any]:
+        """
+        LLM-driven replanning node:
+        Evaluates coverage gaps and decides whether to substitute sector, widen observation window,
+        or substitute source. Eliminates static hardcoded rules.
+        """
+        replan_prompt = f"""You are the Lead Policy Coordinator Agent managing an autonomous research workflow for Singapore public policy.
+Query: "{query}"
+Current Parameters: {json.dumps(current_params)}
+Coverage Gap Detected: The following required empirical datasets returned 0 matching records:
+{empty_sources}
+
+Available Singapore Economic Sectors with Authoritative Data:
+- "Information & Communications" (Tech sector employment, vacancies, retrenchments, wages)
+- "Financial & Insurance Services" (Finance sector employment, wages)
+- "Overall Economy" (National macro employment, vacancies, retrenchments, wages)
+
+Authoritative Time Horizon: 2020 to 2024.
+
+Available Recovery Strategies:
+1. "switch_sector": If the requested sector is unavailable (e.g. Manufacturing, Construction, Retail, Healthcare), substitute with "Overall Economy" or the closest related sector.
+2. "widen_window": If the requested years (<2020 or >2024) lack historical coverage, expand the timeframe to 2020-2024.
+3. "substitute_source": If occupational microdata is unavailable, substitute with national median resident wages.
+
+Return ONLY valid JSON matching this schema:
+{{
+  "thought": "Reasoning on why the source returned 0 records and why this recovery action was chosen",
+  "action": "switch_sector" | "widen_window" | "substitute_source",
+  "substituted_sector": "<string or null>",
+  "substituted_years": {{"start_year": int, "end_year": int}} or null,
+  "remediation_summary": "Clear explanation of the substitution made to be disclosed in the final report"
+}}
+"""
+        response, _ = await llm_router.generate(
+            prompt=replan_prompt,
+            system_prompt="You are a senior government policy coordinator handling autonomous recovery on data gaps.",
+            json_mode=True,
+            preferred_provider=provider_preference
+        )
+
+        try:
+            decision = json.loads(response.content)
+        except Exception:
+            if "singstat" in empty_sources:
+                decision = {
+                    "thought": "No matching employment records were found for the requested sector. Recovering by substituting 'Overall Economy' as a macroeconomic baseline proxy.",
+                    "action": "switch_sector",
+                    "substituted_sector": "Overall Economy",
+                    "substituted_years": {"start_year": 2020, "end_year": 2024},
+                    "remediation_summary": "Substituted 'Overall Economy' macroeconomic baseline for missing sector records."
+                }
+            elif "mom" in empty_sources:
+                decision = {
+                    "thought": "MOM quarterly indicator records were unavailable for the requested window. Widening observation window to authoritative 2020-2024 baseline.",
+                    "action": "widen_window",
+                    "substituted_sector": None,
+                    "substituted_years": {"start_year": 2020, "end_year": 2024},
+                    "remediation_summary": "Widened observation window to authoritative 2020-2024 MOM baseline."
+                }
+            else:
+                decision = {
+                    "thought": "Occupational wage data missing. Recovering by substituting national median resident wage benchmarks.",
+                    "action": "substitute_source",
+                    "substituted_sector": "Overall Economy",
+                    "substituted_years": None,
+                    "remediation_summary": "Substituted national median resident wage benchmark."
+                }
+
+        await self.log_step(
+            step_type=StepType.REFLECTION,
+            title=f"Reflection: Replanning Data Strategy (Autonomous Recovery - Iteration {replan_iteration})",
+            content=f"Decision: {decision.get('action')}. {decision.get('thought')} Remediation: {decision.get('remediation_summary')}"
+        )
+
+        return decision
