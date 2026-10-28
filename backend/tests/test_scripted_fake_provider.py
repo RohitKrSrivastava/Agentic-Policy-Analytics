@@ -1,11 +1,10 @@
 import json
-import time
 from typing import Any
+
 import pytest
 
 from backend.app.agents.analytics import AnalyticsAgent
 from backend.app.agents.extractor import DataExtractionAgent
-from backend.app.evaluation.hallucination_guard import hallucination_guard
 from backend.app.llm.base import BaseLLMProvider, LLMResponse
 from backend.app.llm.router import llm_router
 from backend.app.models.schemas import StepType

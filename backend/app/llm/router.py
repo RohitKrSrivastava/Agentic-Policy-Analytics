@@ -12,8 +12,8 @@ logger = logging.getLogger("llm_router")
 
 class MultiCloudLLMRouter:
     """
-    Enterprise Multi-Cloud LLM Router with automated failover and telemetry.
-    Supports OpenAI, Google Cloud Gemini, AWS Bedrock, and an air-gapped deterministic engine.
+    Multi-Cloud LLM Router with automated failover and telemetry.
+    Supports OpenAI, Google Cloud Gemini, AWS Bedrock, and an offline deterministic mode.
     """
     def __init__(self):
         self.providers: dict[str, BaseLLMProvider] = {

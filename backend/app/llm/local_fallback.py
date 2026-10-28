@@ -134,7 +134,56 @@ class LocalDeterministicFallbackProvider(BaseLLMProvider):
             except ValueError:
                 pass
 
-        # 0. Repair / Self-Correction Response
+        # 0. ReAct Data Extraction Agent Prompt Handler
+        if "authorized tool registry:" in p_lower and "determine the next action" in p_lower:
+            has_mom = "query_mom_json_api" in p_lower or "query_mom_statistics" in p_lower
+            has_wages = "query_datagovsg_api" in p_lower
+
+            sectors_match = re.search(r'target sectors:\s*\[(.*?)\]', prompt, re.I)
+            sectors_list = [s.strip().strip("'\"") for s in sectors_match.group(1).split(",") if s.strip()] if sectors_match else [sector]
+
+            # Find sectors not yet queried via query_singstat_api in scratchpad
+            unqueried_singstat = []
+            for s in sectors_list:
+                s_esc = re.escape(s.lower())
+                # Check if scratchpad contains query_singstat_api call with this sector
+                if not re.search(rf"query_singstat_api\([^\)]*['\"]sector['\"]\s*:\s*['\"]?{s_esc}", p_lower) and not re.search(rf"query_singstat_api\(.*{s_esc}", p_lower):
+                    unqueried_singstat.append(s)
+
+            if unqueried_singstat:
+                target_sec = unqueried_singstat[0]
+                step_obj = {
+                    "thought": f"Empirical SingStat quarterly employment records needed for {target_sec} ({start_year}-{end_year}). Invoking query_singstat_api.",
+                    "action": "query_singstat_api",
+                    "args": {"sector": target_sec, "start_year": start_year, "end_year": end_year}
+                }
+            elif not has_mom:
+                step_obj = {
+                    "thought": "Labour market indicators (quarterly vacancies and retrenchments) needed. Invoking query_mom_json_api.",
+                    "action": "query_mom_json_api",
+                    "args": {"start_year": start_year, "end_year": end_year}
+                }
+            elif not has_wages:
+                step_obj = {
+                    "thought": "Data.gov.sg sector wage distribution benchmarks needed. Invoking query_datagovsg_api.",
+                    "action": "query_datagovsg_api",
+                    "args": {"industry": sector}
+                }
+            else:
+                step_obj = {
+                    "thought": "All required empirical datasets acquired across target sectors. Finalizing data extraction phase.",
+                    "action": "finish_extraction",
+                    "args": {}
+                }
+            return LLMResponse(
+                content=json.dumps(step_obj, indent=2),
+                provider_name=self.name,
+                model_name=self.model_name,
+                latency_ms=(time.time() - start_time) * 1000,
+                total_tokens=150
+            )
+
+        # 0b. Repair / Self-Correction Response
         if "unsupported" in p_lower or "repair" in p_lower or "rewrite the report" in p_lower:
             # Parse ground truth metrics directly from prompt payload
             summary_sentences = []

@@ -6,7 +6,9 @@ Includes:
 """
 
 import uuid
+
 import pytest
+
 from backend.app.agents.orchestrator import PolicyOrchestrator
 from backend.app.core.database import DBAnalysisSession, SessionLocal
 from backend.app.models.schemas import SessionStatus
@@ -18,28 +20,28 @@ GOLDEN_POLICY_QUERIES = [
     "Assess the impact of tech layoffs and retrenchments on Singapore ICT workforce in 2023.",
     "What was the compound annual growth rate (CAGR) of median wages in tech from 2020 to 2024?",
     "Evaluate job vacancies and talent tightness in the Information & Communications sector.",
-    
+
     # Financial Services queries
     "Analyze financial services employment dynamics and workforce expansion from 2020 to 2024.",
     "Examine tech talent adoption and wage premium in the Singapore financial sector.",
     "Compare financial sector retrenchments in 2023 against historical pre-2022 levels.",
     "Assess wage trajectory in banking and insurance relative to the national median.",
-    
+
     # Multi-sector comparisons
     "Compare tech employment and wage growth between ICT and Financial Services (2020-2024).",
     "Evaluate manpower growth across Information Technology versus Banking & Finance.",
     "Contrast retrenchment resilience between tech sector and financial services post-2022.",
-    
+
     # Temporal & historical boundaries (edge cases)
     "Analyse retail sector employment 2015-2019.",
     "Compare tech employment in 2018 and 2019.",
     "Examine Singapore ICT workforce trends from 2021 to 2023.",
-    
+
     # Sector coverage edge cases (triggering reflection/replanning or guardrails)
     "Evaluate manufacturing sector employment and automation impact 2021-2023.",
     "Examine healthcare wages and nursing staff retention in public hospitals.",
     "Assess construction sector workforce reliance on work permit holders 2020-2024.",
-    
+
     # Ambiguous & broad queries
     "Tell me something about labor market trends.",
     "Provide policy recommendations for Singapore's digital workforce strategy 2025."

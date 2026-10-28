@@ -179,7 +179,7 @@ class DataExtractionAgent(BaseAgent):
 
         # Check whether provider is local_fallback
         provider = llm_router.get_provider_for_preference(provider_preference)
-        use_react_agent = provider.name != "local_fallback" and bool(query)
+        use_react_agent = bool(query)
 
         # -------------------------------------------------------------
         # 1. Autonomous ReAct Decision Loop (Live LLM Providers)
@@ -356,12 +356,10 @@ Return ONLY valid JSON:
 
         # -------------------------------------------------------------
         # 2. Deterministic Extraction Plan Execution
-        # (Executes if local_fallback or if core datasets still needed)
+        # (Executes if local_fallback, if no data acquired, or if sector coverage gaps remain)
         # -------------------------------------------------------------
-        # Build multi-sector subtasks to guarantee coverage across all requested sectors
         subtasks_to_run = []
 
-        # If subtasks were explicitly provided in plan and we haven't acquired anything yet
         if not datasets and plan and plan.get("subtasks"):
             subtasks_to_run = list(plan["subtasks"])
         elif not datasets:
@@ -398,6 +396,19 @@ Return ONLY valid JSON:
                 "reasoning": "Retrieve strategic policy KPIs",
                 "parameters": {}
             })
+        else:
+            # If ReAct ran but missed any requested sectors in SingStat, acquire them deterministically
+            existing_singstat_sectors = {
+                r.get("sector") for r in datasets.get("singstat", []) if isinstance(r, dict) and r.get("sector")
+            }
+            for sec in sectors:
+                if sec not in existing_singstat_sectors:
+                    subtasks_to_run.append({
+                        "task_id": f"ST-SING-{sec[:4].upper()}",
+                        "tool_name": "query_singstat_table",
+                        "reasoning": f"Acquire {sec} employment time series",
+                        "parameters": {"sector": sec, "start_year": start_year, "end_year": end_year}
+                    })
 
         for st in subtasks_to_run:
             t_name = st.get("tool_name", "")

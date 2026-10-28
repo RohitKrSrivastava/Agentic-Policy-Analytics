@@ -207,40 +207,44 @@ class DataCoordinatorAgent(BaseAgent):
 
         # Step 3: Tool Selection & LLM Dynamic Planning
         selected_tools = []
-        if "employment" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
-            selected_tools.append({
-                "task_id": "ST-01",
-                "source": "DOS SingStat",
-                "tool_name": "query_singstat_table",
-                "reasoning": f"Extract quarterly {params['sector']} employment time series ({params['start_year']}-{params['end_year']}) to model CAGR and workforce trajectory.",
-                "parameters": {"sector": params["sector"], "start_year": params["start_year"], "end_year": params["end_year"]}
-            })
+        sectors_to_plan = params.get("sectors") or [params["sector"]]
+
+        for idx, sec in enumerate(sectors_to_plan, 1):
+            if "employment" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
+                selected_tools.append({
+                    "task_id": f"ST-EMP-0{idx}",
+                    "source": "DOS SingStat",
+                    "tool_name": "query_singstat_table",
+                    "reasoning": f"Extract quarterly {sec} employment time series ({params['start_year']}-{params['end_year']}) to model CAGR and workforce trajectory.",
+                    "parameters": {"sector": sec, "start_year": params["start_year"], "end_year": params["end_year"]}
+                })
+            if "wages" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
+                selected_tools.append({
+                    "task_id": f"ST-WAG-0{idx}",
+                    "source": "Data.gov.sg",
+                    "tool_name": "query_datagovsg_api",
+                    "reasoning": f"Connect to Data.gov.sg wage benchmarks to assess {sec} salary distribution and wage premium.",
+                    "parameters": {"industry": sec}
+                })
+
         if "vacancies" in params["focus_metrics"] or "retrenchments" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
             selected_tools.append({
-                "task_id": "ST-02",
+                "task_id": "ST-MOM-01",
                 "source": "MOM Statistics",
                 "tool_name": "query_mom_statistics",
                 "reasoning": f"Acquire MOM quarterly job vacancies, retrenchments, and vacancy-to-unemployed ratio for {params['start_year']}-{params['end_year']}.",
                 "parameters": {"sector": params["sector"], "start_year": params["start_year"], "end_year": params["end_year"]}
             })
-        if "wages" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
             selected_tools.append({
-                "task_id": "ST-03",
-                "source": "Data.gov.sg",
-                "tool_name": "query_datagovsg_api",
-                "reasoning": f"Connect to Data.gov.sg wage benchmarks to assess {params['sector']} salary distribution and wage premium over national median.",
-                "parameters": {"industry": params["sector"]}
-            })
-        if "vacancies" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
-            selected_tools.append({
-                "task_id": "ST-04",
+                "task_id": "ST-MOM-02",
                 "source": "MOM Excel",
                 "tool_name": "fetch_mom_turnover_excel",
                 "reasoning": f"Extract recruitment and resignation rates from MOM Labour Turnover Survey for {params['sector']}.",
                 "parameters": {"sector": params["sector"]}
             })
+
         selected_tools.append({
-            "task_id": f"ST-0{len(selected_tools)+1}",
+            "task_id": f"ST-POL-0{len(selected_tools)+1}",
             "source": "Internal Policy DB",
             "tool_name": "fetch_internal_policy_kpis",
             "reasoning": "Retrieve strategic policy initiatives, funding allocations, and TeSA / AI Strategy 2.0 KPI benchmarks.",

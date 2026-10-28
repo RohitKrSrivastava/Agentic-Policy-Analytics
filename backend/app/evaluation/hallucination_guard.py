@@ -133,92 +133,146 @@ class HallucinationVerificationGuard:
             return True
         return False
 
+    @staticmethod
+    def extract_claim_sector(context: str, token_pos: int | None = None) -> str | None:
+        c_lower = context.lower()
+        mentions: list[tuple[int, str]] = []
+        for m in re.finditer(r'\b(financial|banking|finance|insurance)\b', c_lower):
+            mentions.append((m.start(), "Financial & Insurance Services"))
+        for m in re.finditer(r'\b(tech|ict|information|software|infocomm)\b', c_lower):
+            mentions.append((m.start(), "Information & Communications"))
+        for m in re.finditer(r'\b(overall|economy-wide)\b', c_lower):
+            mentions.append((m.start(), "Overall Economy"))
+
+        if not mentions:
+            return None
+
+        if token_pos is not None:
+            # Pick the sector mention closest to the candidate token in the sentence
+            mentions.sort(key=lambda item: abs(item[0] - token_pos))
+            return mentions[0][1]
+
+        return mentions[0][1]
+
     def build_ground_truth_index(self, ground_truth: dict[str, Any], rag_chunks: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         index: list[dict[str, Any]] = []
 
-        def add_entry(val: float, category: str, source: str, desc: str, tol: float = 0.1):
+        def normalize_sector(raw: str | None) -> str | None:
+            if not raw:
+                return None
+            r_lower = raw.lower()
+            if any(k in r_lower for k in ["fin", "bank", "insur"]):
+                return "Financial & Insurance Services"
+            if any(k in r_lower for k in ["tech", "ict", "information", "software", "infocomm"]):
+                return "Information & Communications"
+            if any(k in r_lower for k in ["overall", "economy", "national"]):
+                return "Overall Economy"
+            return raw
+
+        def add_entry(val: float, category: str, source: str, desc: str, tol: float = 0.1, sector: str | None = None):
             if val is not None and not math.isnan(val):
                 index.append({
                     "value": float(val),
                     "category": category,
                     "source": source,
                     "description": desc,
-                    "tolerance": tol
+                    "tolerance": tol,
+                    "sector": sector
                 })
 
         # 1. Computed Metrics
         metrics = ground_truth.get("metrics", {})
         if isinstance(metrics, dict):
+            primary_sec = normalize_sector(metrics.get("sector", "Information & Communications"))
+
+            # Multi-sector specific metrics
+            sector_metrics = metrics.get("sector_metrics", {})
+            if isinstance(sector_metrics, dict):
+                for sec_name, s_m in sector_metrics.items():
+                    s_norm = normalize_sector(sec_name)
+                    if isinstance(s_m, dict):
+                        if s_m.get("tech_cagr") is not None:
+                            add_entry(s_m["tech_cagr"], "CAGR", "computed_metrics", f"{sec_name} CAGR: {s_m['tech_cagr']}%", tol=0.05, sector=s_norm)
+                        if s_m.get("net_jobs_added") is not None:
+                            add_entry(s_m["net_jobs_added"], "HEADCOUNT", "computed_metrics", f"{sec_name} net jobs: {s_m['net_jobs_added']}", tol=1.0, sector=s_norm)
+                            add_entry(round(s_m["net_jobs_added"] / 1000.0, 1), "HEADCOUNT", "computed_metrics", f"{sec_name} net jobs (k): {s_m['net_jobs_added']/1000.0:.1f}k", tol=0.1, sector=s_norm)
+                        if s_m.get("tech_start_employment") is not None:
+                            add_entry(s_m["tech_start_employment"], "HEADCOUNT", "computed_metrics", f"{sec_name} start emp: {s_m['tech_start_employment']}k", tol=0.1, sector=s_norm)
+                        if s_m.get("tech_end_employment") is not None:
+                            add_entry(s_m["tech_end_employment"], "HEADCOUNT", "computed_metrics", f"{sec_name} end emp: {s_m['tech_end_employment']}k", tol=0.1, sector=s_norm)
+
             if metrics.get("tech_cagr") is not None:
-                add_entry(metrics["tech_cagr"], "CAGR", "computed_metrics", f"Tech CAGR: {metrics['tech_cagr']}%", tol=0.05)
+                add_entry(metrics["tech_cagr"], "CAGR", "computed_metrics", f"Tech CAGR: {metrics['tech_cagr']}%", tol=0.05, sector=primary_sec)
             if metrics.get("overall_cagr") is not None:
-                add_entry(metrics["overall_cagr"], "CAGR", "computed_metrics", f"Overall CAGR: {metrics['overall_cagr']}%", tol=0.05)
+                add_entry(metrics["overall_cagr"], "CAGR", "computed_metrics", f"Overall CAGR: {metrics['overall_cagr']}%", tol=0.05, sector="Overall Economy")
             if metrics.get("tech_total_growth_pct") is not None:
-                add_entry(metrics["tech_total_growth_pct"], "PERCENTAGE", "computed_metrics", f"Tech total growth: {metrics['tech_total_growth_pct']}%", tol=0.1)
+                add_entry(metrics["tech_total_growth_pct"], "PERCENTAGE", "computed_metrics", f"Tech total growth: {metrics['tech_total_growth_pct']}%", tol=0.1, sector=primary_sec)
             if metrics.get("net_jobs_added") is not None:
-                add_entry(metrics["net_jobs_added"], "HEADCOUNT", "computed_metrics", f"Net jobs added: {metrics['net_jobs_added']}", tol=1.0)
-                add_entry(round(metrics["net_jobs_added"] / 1000.0, 1), "HEADCOUNT", "computed_metrics", f"Net jobs added (k): {metrics['net_jobs_added']/1000.0:.1f}k", tol=0.1)
+                add_entry(metrics["net_jobs_added"], "HEADCOUNT", "computed_metrics", f"Net jobs added: {metrics['net_jobs_added']}", tol=1.0, sector=primary_sec)
+                add_entry(round(metrics["net_jobs_added"] / 1000.0, 1), "HEADCOUNT", "computed_metrics", f"Net jobs added (k): {metrics['net_jobs_added']/1000.0:.1f}k", tol=0.1, sector=primary_sec)
             if metrics.get("tech_median_wage") is not None:
-                add_entry(metrics["tech_median_wage"], "WAGE", "computed_metrics", f"Tech median wage: S${metrics['tech_median_wage']}", tol=2.0)
+                add_entry(metrics["tech_median_wage"], "WAGE", "computed_metrics", f"Tech median wage: S${metrics['tech_median_wage']}", tol=2.0, sector=primary_sec)
             if metrics.get("national_median_wage") is not None:
-                add_entry(metrics["national_median_wage"], "WAGE", "computed_metrics", f"National median wage: S${metrics['national_median_wage']}", tol=2.0)
+                add_entry(metrics["national_median_wage"], "WAGE", "computed_metrics", f"National median wage: S${metrics['national_median_wage']}", tol=2.0, sector="Overall Economy")
             if metrics.get("tech_premium_pct") is not None:
-                add_entry(metrics["tech_premium_pct"], "PERCENTAGE", "computed_metrics", f"Tech wage premium: {metrics['tech_premium_pct']}%", tol=0.1)
+                add_entry(metrics["tech_premium_pct"], "PERCENTAGE", "computed_metrics", f"Tech wage premium: {metrics['tech_premium_pct']}%", tol=0.1, sector=primary_sec)
             if metrics.get("peak_vacancies") is not None:
-                add_entry(metrics["peak_vacancies"], "VACANCY", "computed_metrics", f"Peak vacancies: {metrics['peak_vacancies']}", tol=1.0)
-                add_entry(round(metrics["peak_vacancies"] / 1000.0, 1), "VACANCY", "computed_metrics", f"Peak vacancies (k): {metrics['peak_vacancies']/1000.0:.1f}k", tol=0.1)
+                add_entry(metrics["peak_vacancies"], "VACANCY", "computed_metrics", f"Peak vacancies: {metrics['peak_vacancies']}", tol=1.0, sector=None)
+                add_entry(round(metrics["peak_vacancies"] / 1000.0, 1), "VACANCY", "computed_metrics", f"Peak vacancies (k): {metrics['peak_vacancies']/1000.0:.1f}k", tol=0.1, sector=None)
             if metrics.get("latest_vacancies") is not None:
-                add_entry(metrics["latest_vacancies"], "VACANCY", "computed_metrics", f"Latest vacancies: {metrics['latest_vacancies']}", tol=1.0)
-                add_entry(round(metrics["latest_vacancies"] / 1000.0, 1), "VACANCY", "computed_metrics", f"Latest vacancies (k): {metrics['latest_vacancies']/1000.0:.1f}k", tol=0.1)
+                add_entry(metrics["latest_vacancies"], "VACANCY", "computed_metrics", f"Latest vacancies: {metrics['latest_vacancies']}", tol=1.0, sector=None)
+                add_entry(round(metrics["latest_vacancies"] / 1000.0, 1), "VACANCY", "computed_metrics", f"Latest vacancies (k): {metrics['latest_vacancies']/1000.0:.1f}k", tol=0.1, sector=None)
             if metrics.get("peak_retrenchments") is not None:
-                add_entry(metrics["peak_retrenchments"], "RETRENCHMENT", "computed_metrics", f"Peak retrenchments: {metrics['peak_retrenchments']}", tol=1.0)
+                add_entry(metrics["peak_retrenchments"], "RETRENCHMENT", "computed_metrics", f"Peak retrenchments: {metrics['peak_retrenchments']}", tol=1.0, sector=None)
             if metrics.get("latest_retrenchments") is not None:
-                add_entry(metrics["latest_retrenchments"], "RETRENCHMENT", "computed_metrics", f"Latest retrenchments: {metrics['latest_retrenchments']}", tol=1.0)
+                add_entry(metrics["latest_retrenchments"], "RETRENCHMENT", "computed_metrics", f"Latest retrenchments: {metrics['latest_retrenchments']}", tol=1.0, sector=None)
             if metrics.get("latest_reentry_rate") is not None:
-                add_entry(metrics["latest_reentry_rate"], "REENTRY_RATE", "computed_metrics", f"Reentry rate: {metrics['latest_reentry_rate']}%", tol=0.1)
+                add_entry(metrics["latest_reentry_rate"], "REENTRY_RATE", "computed_metrics", f"Reentry rate: {metrics['latest_reentry_rate']}%", tol=0.1, sector=None)
             if metrics.get("vacancy_to_unemployed_ratio") is not None:
-                add_entry(metrics["vacancy_to_unemployed_ratio"], "RATIO", "computed_metrics", f"Vacancy to unemployed ratio: {metrics['vacancy_to_unemployed_ratio']}", tol=0.05)
+                add_entry(metrics["vacancy_to_unemployed_ratio"], "RATIO", "computed_metrics", f"Vacancy to unemployed ratio: {metrics['vacancy_to_unemployed_ratio']}", tol=0.05, sector="Overall Economy")
 
             for k, v in metrics.items():
                 if isinstance(v, (int, float)) and not math.isnan(v):
-                    add_entry(float(v), "GENERAL", "computed_metrics", f"Metric {k}: {v}", tol=0.25)
+                    add_entry(float(v), "GENERAL", "computed_metrics", f"Metric {k}: {v}", tol=0.25, sector=None)
 
         # 2. Raw / Cleaned Datasets
         datasets = ground_truth.get("datasets", {})
         if isinstance(datasets, dict):
             for row in datasets.get("singstat", []):
                 if isinstance(row, dict):
+                    row_sec = normalize_sector(row.get("sector", "Information & Communications"))
                     period = f"{row.get('year', '')}-{row.get('quarter', '')}"
                     if "employment_thousands" in row and isinstance(row["employment_thousands"], (int, float)):
                         emp_k = float(row["employment_thousands"])
-                        add_entry(emp_k, "HEADCOUNT", "singstat_tech_employment.csv", f"SingStat {period} employment (k): {emp_k}k", tol=0.1)
-                        add_entry(emp_k * 1000.0, "HEADCOUNT", "singstat_tech_employment.csv", f"SingStat {period} total headcount: {int(emp_k*1000):,}", tol=1.0)
+                        add_entry(emp_k, "HEADCOUNT", "singstat_tech_employment.csv", f"SingStat {row_sec} {period} employment (k): {emp_k}k", tol=0.1, sector=row_sec)
+                        add_entry(emp_k * 1000.0, "HEADCOUNT", "singstat_tech_employment.csv", f"SingStat {row_sec} {period} total headcount: {int(emp_k*1000):,}", tol=1.0, sector=row_sec)
                     if "growth_rate_yoy" in row and isinstance(row["growth_rate_yoy"], (int, float)):
-                        add_entry(float(row["growth_rate_yoy"]), "PERCENTAGE", "singstat_tech_employment.csv", f"SingStat {period} YoY: {row['growth_rate_yoy']}%", tol=0.1)
+                        add_entry(float(row["growth_rate_yoy"]), "PERCENTAGE", "singstat_tech_employment.csv", f"SingStat {row_sec} {period} YoY: {row['growth_rate_yoy']}%", tol=0.1, sector=row_sec)
                     if "local_workforce_pct" in row and isinstance(row["local_workforce_pct"], (int, float)):
-                        add_entry(float(row["local_workforce_pct"]), "PERCENTAGE", "singstat_tech_employment.csv", f"SingStat {period} local share: {row['local_workforce_pct']}%", tol=0.1)
+                        add_entry(float(row["local_workforce_pct"]), "PERCENTAGE", "singstat_tech_employment.csv", f"SingStat {row_sec} {period} local share: {row['local_workforce_pct']}%", tol=0.1, sector=row_sec)
                     if "productivity_index" in row and isinstance(row["productivity_index"], (int, float)):
-                        add_entry(float(row["productivity_index"]), "GENERAL", "singstat_tech_employment.csv", f"SingStat {period} productivity: {row['productivity_index']}", tol=0.1)
+                        add_entry(float(row["productivity_index"]), "GENERAL", "singstat_tech_employment.csv", f"SingStat {row_sec} {period} productivity: {row['productivity_index']}", tol=0.1, sector=row_sec)
 
             for row in datasets.get("mom", []):
                 if isinstance(row, dict):
                     period = f"{row.get('year', '')}-{row.get('quarter', '')}"
                     if "tech_job_vacancies" in row and isinstance(row["tech_job_vacancies"], (int, float)):
-                        add_entry(float(row["tech_job_vacancies"]), "VACANCY", "mom_labour_market_indicators.json", f"MOM {period} vacancies: {row['tech_job_vacancies']}", tol=1.0)
-                        add_entry(round(float(row["tech_job_vacancies"]) / 1000.0, 1), "VACANCY", "mom_labour_market_indicators.json", f"MOM {period} vacancies (k): {float(row['tech_job_vacancies'])/1000.0:.1f}k", tol=0.1)
+                        add_entry(float(row["tech_job_vacancies"]), "VACANCY", "mom_labour_market_indicators.json", f"MOM {period} vacancies: {row['tech_job_vacancies']}", tol=1.0, sector=None)
+                        add_entry(round(float(row["tech_job_vacancies"]) / 1000.0, 1), "VACANCY", "mom_labour_market_indicators.json", f"MOM {period} vacancies (k): {float(row['tech_job_vacancies'])/1000.0:.1f}k", tol=0.1, sector=None)
                     if "tech_retrenchments" in row and isinstance(row["tech_retrenchments"], (int, float)):
-                        add_entry(float(row["tech_retrenchments"]), "RETRENCHMENT", "mom_labour_market_indicators.json", f"MOM {period} retrenchments: {row['tech_retrenchments']}", tol=1.0)
+                        add_entry(float(row["tech_retrenchments"]), "RETRENCHMENT", "mom_labour_market_indicators.json", f"MOM {period} retrenchments: {row['tech_retrenchments']}", tol=1.0, sector=None)
                     if "vacancy_to_unemployed_ratio" in row and isinstance(row["vacancy_to_unemployed_ratio"], (int, float)):
-                        add_entry(float(row["vacancy_to_unemployed_ratio"]), "RATIO", "mom_labour_market_indicators.json", f"MOM {period} ratio: {row['vacancy_to_unemployed_ratio']}", tol=0.05)
+                        add_entry(float(row["vacancy_to_unemployed_ratio"]), "RATIO", "mom_labour_market_indicators.json", f"MOM {period} ratio: {row['vacancy_to_unemployed_ratio']}", tol=0.05, sector="Overall Economy")
                     if "reentry_rate_pct" in row and isinstance(row["reentry_rate_pct"], (int, float)):
-                        add_entry(float(row["reentry_rate_pct"]), "REENTRY_RATE", "mom_labour_market_indicators.json", f"MOM {period} re-entry: {row['reentry_rate_pct']}%", tol=0.1)
+                        add_entry(float(row["reentry_rate_pct"]), "REENTRY_RATE", "mom_labour_market_indicators.json", f"MOM {period} re-entry: {row['reentry_rate_pct']}%", tol=0.1, sector=None)
 
             for row in datasets.get("wages", []):
                 if isinstance(row, dict):
                     ind = row.get("industry") or row.get("role", "National")
+                    row_sec = normalize_sector(ind)
                     for col in ["median_gross_wage_sgd", "p25_gross_wage_sgd", "p75_gross_wage_sgd"]:
                         if col in row and isinstance(row[col], (int, float)):
-                            add_entry(float(row[col]), "WAGE", "datagovsg_wages_by_sector.json", f"Data.gov.sg {ind} {col}: S${row[col]}", tol=2.0)
+                            add_entry(float(row[col]), "WAGE", "datagovsg_wages_by_sector.json", f"Data.gov.sg {ind} {col}: S${row[col]}", tol=2.0, sector=row_sec)
 
             all_rag = (rag_chunks or []) + datasets.get("rag_chunks", []) + ground_truth.get("rag_chunks", [])
             for chunk in all_rag:
@@ -303,6 +357,19 @@ class HallucinationVerificationGuard:
                     tol = entry["tolerance"]
 
                     if abs(cand - gt_val) <= tol:
+                        gt_sec = entry.get("sector")
+                        claim_sec = self.extract_claim_sector(context, token_pos=start_pos)
+
+                        # Explicit cross-sector isolation between distinct industry sectors (e.g. ICT vs Finance)
+                        # National baselines ("Overall Economy") remain compatible across reports
+                        if claim_sec and gt_sec and claim_sec != gt_sec and claim_sec != "Overall Economy" and gt_sec != "Overall Economy":
+                            semantic_mismatch_detected = {
+                                "claimed_category": f"{claim_category} ({claim_sec})",
+                                "conflicting_ground_truth_category": f"{gt_cat} ({gt_sec})",
+                                "conflicting_description": f"{entry['description']} [Belongs to {gt_sec}]"
+                            }
+                            continue
+
                         compatible = (
                             claim_category == gt_cat or
                             (claim_category == "PERCENTAGE" and gt_cat in ["PERCENTAGE", "CAGR", "TOTAL_GROWTH", "REENTRY_RATE"]) or

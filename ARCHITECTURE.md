@@ -140,7 +140,7 @@ Rather than introducing external orchestration frameworks like LangGraph or Crew
 
 ## 3. Multi-Cloud LLM Integration & Cascading Fallback
 
-To satisfy enterprise government reliability requirements, the platform provides automated failover across **four distinct LLM providers**:
+To satisfy research prototype reliability requirements, the platform provides automated failover across **four distinct LLM providers**:
 
 ```mermaid
 stateDiagram-v2
@@ -160,7 +160,7 @@ stateDiagram-v2
 
 ### Fallback Guarantee
 - If a cloud provider encounters rate-limiting (HTTP 429), authentication error (missing/expired key), or network timeout, `MultiCloudLLMRouter` catches the exception, logs a telemetry warning, records the failover event, and automatically dispatches to the next provider.
-- If all cloud providers are unconfigured (e.g., in an air-gapped evaluation environment without pre-configured secrets), the **Local Deterministic Fallback Engine** seamlessly activates. It executes high-precision Singapore economic heuristics, ensuring **100% application uptime with zero test failures**.
+- If all cloud providers are unconfigured (e.g., in an offline evaluation environment without pre-configured secrets), the **Local Deterministic Fallback Engine** seamlessly activates. It executes high-precision Singapore economic heuristics, ensuring **100% application uptime with zero test failures**.
 
 ---
 

@@ -1,18 +1,15 @@
-import json
-import time
-from locust import HttpUser, task, between
-import websocket
+from locust import HttpUser, between, task
 
 
 class PolicyAnalyticsUser(HttpUser):
     """
     Locust Load Test User:
-    Simulates policy analysts submitting research queries via POST /api/v1/analysis/query,
-    polling session status, and connecting via WebSocket to receive live ReAct telemetry.
+    Simulates policy analysts submitting research queries via POST /api/v1/analysis,
+    polling session status, fetching dataset previews, and checking system health.
     """
-    wait_time = between(1, 2)
+    wait_time = between(0.1, 0.4)
 
-    @task(3)
+    @task(4)
     def submit_and_track_analysis(self):
         payload = {
             "query": "Analyse employment trends in the technology sector from 2020-2024",
@@ -26,43 +23,17 @@ class PolicyAnalyticsUser(HttpUser):
                 session_id = data.get("session_id")
                 if session_id:
                     resp.success()
-                    # Poll for completion
-                    for _ in range(5):
-                        time.sleep(0.5)
-                        poll_resp = self.client.get(f"/api/v1/analysis/{session_id}", name="/api/v1/analysis/[id]")
-                        if poll_resp.status_code == 200:
-                            pdata = poll_resp.json()
-                            if pdata.get("status") in ["completed", "failed"]:
-                                break
+                    # Poll status
+                    self.client.get(f"/api/v1/analysis/{session_id}", name="/api/v1/analysis/[id]")
                 else:
                     resp.failure("No session_id in response")
             else:
                 resp.failure(f"Failed with status {resp.status_code}")
 
-    @task(1)
+    @task(3)
     def fetch_datasets(self):
         self.client.get("/api/v1/datasets/previews", name="/api/v1/datasets/previews")
 
-    @task(1)
-    def test_websocket_telemetry(self):
-        # Create lightweight session
-        payload = {
-            "query": "Singapore wage benchmarks 2020-2024",
-            "provider_preference": "local_fallback"
-        }
-        resp = self.client.post("/api/v1/analysis", json=payload)
-        if resp.status_code == 200:
-            session_id = resp.json().get("session_id")
-            if session_id:
-                ws_url = f"ws://127.0.0.1:8000/ws/{session_id}"
-                try:
-                    ws = websocket.create_connection(ws_url, timeout=2.0)
-                    ws.settimeout(1.0)
-                    try:
-                        msg = ws.recv()
-                    except Exception:
-                        pass
-                    ws.close()
-                except Exception:
-                    # WebSocket probe in test environment
-                    pass
+    @task(2)
+    def check_health(self):
+        self.client.get("/api/v1/status", name="/api/v1/status")

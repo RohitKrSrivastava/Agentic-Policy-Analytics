@@ -1,4 +1,5 @@
 import pytest
+
 from backend.app.evaluation.hallucination_guard import hallucination_guard
 
 
@@ -209,3 +210,55 @@ def test_rag_numbers_not_flagged_as_hallucinations(sample_ground_truth):
     assert res["hallucination_score"] == 0.0
     flagged = [d["token"] for d in res["discrepancies"]]
     assert not any("500" in t or "35%" in t for t in flagged)
+
+
+def test_sector_isolated_ground_truth_rejection():
+    """
+    Step 2 / Ground Truth Sector Isolation:
+    A finance number must not verify a tech claim, and vice versa.
+    When a report claims a finance headcount figure in a tech sector context,
+    the hallucination guard flags a cross-sector semantic mismatch.
+    """
+    multi_sec_gt = {
+        "metrics": {
+            "sector_metrics": {
+                "Information & Communications": {"tech_cagr": 8.14, "net_jobs_added": 56700},
+                "Financial & Insurance Services": {"tech_cagr": 5.20, "net_jobs_added": 32000}
+            }
+        },
+        "datasets": {
+            "singstat": [
+                {"year": 2024, "quarter": "Q4", "employment_thousands": 175.1, "sector": "Information & Communications"},
+                {"year": 2024, "quarter": "Q4", "employment_thousands": 245.5, "sector": "Financial & Insurance Services"}
+            ],
+            "wages": [
+                {"industry": "Information & Communications", "median_gross_wage_sgd": 7350, "year": 2024},
+                {"industry": "Financial & Insurance Services", "median_gross_wage_sgd": 8800, "year": 2024}
+            ]
+        }
+    }
+
+    # Cross-sector attribution: claiming finance headcount (245.5k) for the technology sector
+    invalid_report = {
+        "title": "Cross-Sector Verification Check",
+        "executive_summary": "In the technology sector, total employment reached 245.5k with median wage of S$7,350.",
+        "key_findings": [
+            {
+                "heading": "Technology Headcount",
+                "body": "Singapore tech workforce reached 245.5k workers by 2024.",
+                "sentiment": "positive",
+                "statistical_evidence": "245.5k tech workers",
+                "citation_id": "SINGSTAT-M015661"
+            }
+        ]
+    }
+
+    res = hallucination_guard.verify_report(invalid_report, ground_truth=multi_sec_gt)
+    assert res["is_factually_consistent"] is False
+    assert len(res["discrepancies"]) >= 1
+
+    # Ensure the discrepancy correctly notes that 245.5k belongs to Financial & Insurance Services
+    mismatch_disc = next(d for d in res["discrepancies"] if "245.5" in d["token"])
+    assert "Financial & Insurance Services" in mismatch_disc["reason"]
+    assert "Information & Communications" in mismatch_disc["reason"] or "tech" in mismatch_disc["claimed_context"].lower()
+

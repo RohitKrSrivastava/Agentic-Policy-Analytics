@@ -1,7 +1,9 @@
+
 import pytest
-import os
+
 from backend.app.tools.government_sources import data_connector
 from backend.app.tools.statistical_engine import statistical_engine
+
 
 @pytest.mark.asyncio
 async def test_singstat_csv_extraction():

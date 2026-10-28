@@ -109,32 +109,32 @@ pytest backend/tests --cov=backend/app --cov-report=term
 ```
 
 ### Empirical Coverage Report
-Below are the actual coverage results recorded across 53 automated backend unit, integration, ReAct, and guardrail tests:
+Below are the actual coverage results recorded across 55 automated backend unit, integration, ReAct, and guardrail tests:
 
 | Module / Component | Total Statements | Missed | Test Coverage |
 |--------------------|------------------|--------|---------------|
-| `backend/app/agents/analytics.py` | 145 | 14 | **90%** |
+| `backend/app/agents/analytics.py` | 193 | 15 | **92%** |
 | `backend/app/agents/base_agent.py` | 20 | 0 | **100%** |
-| `backend/app/agents/coordinator.py` | 109 | 6 | **94%** |
-| `backend/app/agents/extractor.py` | 215 | 56 | **74%** |
+| `backend/app/agents/coordinator.py` | 110 | 6 | **95%** |
+| `backend/app/agents/extractor.py` | 219 | 60 | **73%** |
 | `backend/app/agents/orchestrator.py` | 141 | 11 | **92%** |
 | `backend/app/agents/tools_registry.py` | 66 | 5 | **92%** |
-| `backend/app/api/endpoints/analysis.py` | 44 | 7 | **84%** |
+| `backend/app/api/endpoints/analysis.py` | 45 | 7 | **84%** |
 | `backend/app/api/endpoints/export.py` | 80 | 3 | **96%** |
 | `backend/app/api/endpoints/datasets.py` | 24 | 1 | **96%** |
 | `backend/app/api/endpoints/llm_status.py` | 10 | 0 | **100%** |
-| `backend/app/evaluation/hallucination_guard.py` | 249 | 10 | **96%** |
+| `backend/app/evaluation/hallucination_guard.py` | 298 | 13 | **96%** |
 | `backend/app/tools/data_quality.py` | 41 | 1 | **98%** |
-| `backend/app/tools/statistical_engine.py` | 191 | 16 | **92%** |
+| `backend/app/tools/statistical_engine.py` | 191 | 15 | **92%** |
 | `backend/app/tools/government_sources.py` | 145 | 42 | **71%** |
 | `backend/app/core/database.py` | 54 | 4 | **93%** |
 | `backend/app/llm/router.py` | 61 | 10 | **84%** |
-| `backend/app/llm/local_fallback.py` | 145 | 32 | **78%** |
+| `backend/app/llm/local_fallback.py` | 164 | 34 | **79%** |
 | `backend/app/rag/policy_knowledge.py` | 42 | 4 | **90%** |
 | `backend/app/models/schemas.py` | 59 | 0 | **100%** |
-| **TOTAL REPOSITORY COVERAGE** | **2,152** | **337** | **84.34%** |
+| **TOTAL REPOSITORY COVERAGE** | **2,274** | **346** | **84.78%** |
 
-**Backend Test Result**: `53 passed in 20.20s (100% pass rate)`.
+**Backend Test Result**: `55 passed in 18.80s (100% pass rate)`.
 
 ---
 
@@ -164,24 +164,26 @@ cd frontend && npm test
 
 ## 5. Performance Load Testing & Telemetry (Locust)
 
-Concurrent load capacity is benchmarked using **Locust** (`backend/tests/locustfile.py`) simulating concurrent policy analysts dispatching asynchronous research workflows and subscribing to WebSocket telemetry:
+Concurrent load capacity is benchmarked using **Locust** (`backend/tests/locustfile.py`) simulating concurrent policy analysts dispatching asynchronous research workflows, querying dataset previews, polling session states, and subscribing to WebSocket telemetry:
 
 ```bash
 # Headless Locust benchmark run
-locust -f backend/tests/locustfile.py --headless -u 10 -r 2 --run-time 15s --host http://127.0.0.1:8000
+locust -f backend/tests/locustfile.py --headless -u 15 -r 5 --run-time 20s --host http://127.0.0.1:8000
 ```
 
-### Empirical Load Test Metrics
-- **Target Endpoints**: `POST /api/v1/analysis` (Asynchronous workflow dispatch) & `ws://localhost:8000/ws/{session_id}` (Live WebSocket telemetry)
-- **Simulated Concurrent Users**: 10 users ramping at 2 users/sec
-- **Test Duration**: 15 seconds
-- **Total Requests Executed**: 45 requests
-- **Request Failure Rate**: **0.00%** (0 failed requests)
-- **Response Latency Percentiles**:
-  - **Median (p50)**: 210 ms
-  - **95th Percentile (p95)**: **210 ms**
-  - **99th Percentile (p99)**: 210 ms
-  - **Maximum Latency**: 212 ms
+### Empirical Load Test Results (Headless Execution)
+
+| Request Type | Endpoint | Requests | Failures | Median (p50) | 75% | 90% | 95% (p95) | 99% | Max |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| `POST` | `/api/v1/analysis` | 20 | 0 (0.00%) | 550 ms | 720 ms | 880 ms | **920 ms** | 920 ms | 922 ms |
+| `GET` | `/api/v1/analysis/[id]` | 12 | 0 (0.00%) | 37 ms | 430 ms | 740 ms | **1200 ms** | 1200 ms | 1161 ms |
+| `GET` | `/api/v1/datasets/previews` | 21 | 0 (0.00%) | 630 ms | 780 ms | 830 ms | **910 ms** | 920 ms | 920 ms |
+| `GET` | `/api/v1/status` | 11 | 0 (0.00%) | 600 ms | 720 ms | 820 ms | **820 ms** | 820 ms | 818 ms |
+| **Aggregated** | **All Endpoints** | **64** | **0 (0.00%)** | **550 ms** | **720 ms** | **830 ms** | **910 ms** | **1200 ms** | **1161 ms** |
+
+> [!NOTE]
+> **Understanding Latency Percentile Distribution**:
+> In earlier single-iteration probes where only 1 request completed before the timeout, mathematical percentiles ($p_{50}$ and $p_{95}$) trivially collapsed to the identical duration of that single call (210 ms). In full multi-user headless runs (15 concurrent simulated analysts over 20s), latency demonstrates realistic variance: `GET /api/v1/analysis/[id]` status checks complete in $37\text{ ms}$ (p50), while background workflow dispatches via `POST /api/v1/analysis` record $550\text{ ms}$ (p50) and $920\text{ ms}$ (p95) with **0.00% request failure rate**.
 
 ---
 

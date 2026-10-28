@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({ health, onOpenHistory, onOpenDat
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-bold text-lg tracking-tight text-white">GovPolicy<span className="text-sky-400">AI</span></span>
-              <span className="bg-sky-500/10 text-sky-400 text-xs px-2 py-0.5 rounded-full border border-sky-500/20 font-medium">Enterprise v1.0</span>
+              <span className="bg-sky-500/10 text-sky-400 text-xs px-2 py-0.5 rounded-full border border-sky-500/20 font-medium">Research Prototype v1.0</span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">Agentic Policy Data Analytics Platform • Singapore Government Focus</p>
           </div>
