@@ -105,4 +105,4 @@ To ensure operational reliability during technical assessments, continuous integ
 1. **Active Live Probe**: When querying Data.gov.sg, `GovernmentDataConnector` attempts an asynchronous HTTP call to `https://data.gov.sg/api/action/datastore_search` with a 4.0-second timeout.
 2. **Schema Ingestion Validation**: Records are validated against `DataGovSgWageRecord` before downstream consumption.
 3. **Graceful Fallback**: If the network times out, rate-limits (HTTP 429), or returns an error, the connector automatically switches to the verified offline snapshot stored at `backend/data/raw/datagovsg_wages_by_sector.json`.
-4. **Dynamic Citation Provenance**: The exact access method (`Live REST API` vs `Local Verified Snapshot (Cached Offline Data)`) is dynamically emitted into the agent observation trace and the final report citations.
+4. **Dynamic Citation Provenance**: The exact access method (`Live REST API` vs `Synthetic benchmark (offline)`) is dynamically emitted into the agent observation trace and the final report citations.

@@ -82,34 +82,64 @@ export const PolicyReportView: React.FC<PolicyReportViewProps> = ({ report, sess
       </div>
 
       {/* Hallucination Verification Guard Certification Strip */}
-      <div className="my-6 bg-gradient-to-r from-purple-50/70 to-indigo-50/70 border border-purple-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-bold text-slate-900">Hallucination Verification Guard: Certified</span>
-              <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded font-mono">100% FACTUAL</span>
-            </div>
-            <p className="text-xs text-slate-600 mt-0.5">
-              Every numerical claim, CAGR calculation, and wage statistic cross-verified with 0 discrepancies against source dataframes.
-            </p>
-          </div>
-        </div>
+      {(() => {
+        const vStatus = report.verification_status || (report.hallucination_score === 0 ? "verified" : report.hallucination_score < 0.2 ? "partially_verified" : "unverified");
+        const discrepancies = report.discrepancy_count ?? (vStatus === "verified" ? 0 : Math.max(1, Math.round(report.hallucination_score * 10)));
 
-        <div className="flex items-center space-x-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-purple-100 shrink-0 font-mono text-xs">
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase block font-sans">Hallucination Risk</span>
-            <span className="font-bold text-emerald-600">0.00 (Zero)</span>
+        let badgeColor = "bg-emerald-500 text-white";
+        let badgeText = "VERIFIED";
+        let guardTitle = "Hallucination Verification Guard: Grounded";
+        let guardDesc = "Quantitative claims and econometric metrics verified against underlying public sector datasets with zero discrepancies.";
+        let riskColor = "text-emerald-600";
+        let riskText = "0.00 (Zero)";
+
+        if (vStatus === "partially_verified") {
+          badgeColor = "bg-amber-500 text-white";
+          badgeText = `PARTIALLY VERIFIED (${discrepancies} ${discrepancies === 1 ? 'discrepancy' : 'discrepancies'})`;
+          guardTitle = "Hallucination Verification Guard: Partially Verified";
+          guardDesc = `Core findings verified; ${discrepancies} claim(s) required repair or had missing ground-truth coverage.`;
+          riskColor = "text-amber-600";
+          riskText = `${report.hallucination_score.toFixed(2)} (Low)`;
+        } else if (vStatus === "unverified" || vStatus === "unverifiable") {
+          badgeColor = "bg-rose-500 text-white";
+          badgeText = vStatus === "unverifiable" ? "UNVERIFIABLE" : "UNVERIFIED";
+          guardTitle = `Hallucination Verification Guard: ${vStatus === "unverifiable" ? "Unverifiable" : "Discrepancies Flagged"}`;
+          guardDesc = "Ground truth verification could not fully confirm reported figures against source repositories.";
+          riskColor = "text-rose-600";
+          riskText = `${report.hallucination_score.toFixed(2)} (High)`;
+        }
+
+        return (
+          <div className="my-6 bg-gradient-to-r from-purple-50/70 to-indigo-50/70 border border-purple-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" data-testid="verification-strip">
+            <div className="flex items-center space-x-3">
+              <div className={`w-10 h-10 rounded-lg ${vStatus === 'verified' ? 'bg-purple-600' : vStatus === 'partially_verified' ? 'bg-amber-600' : 'bg-rose-600'} flex items-center justify-center text-white shrink-0 shadow-sm`}>
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-bold text-slate-900">{guardTitle}</span>
+                  <span className={`${badgeColor} text-[10px] font-bold px-1.5 py-0.5 rounded font-mono`} data-testid="verification-badge">{badgeText}</span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  {guardDesc}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-purple-100 shrink-0 font-mono text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase block font-sans">Hallucination Risk</span>
+                <span className={`font-bold ${riskColor}`}>{riskText}</span>
+              </div>
+              <div className="h-6 w-px bg-slate-200" />
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase block font-sans">Data Quality</span>
+                <span className="font-bold text-sky-600">{report.quality_score}%</span>
+              </div>
+            </div>
           </div>
-          <div className="h-6 w-px bg-slate-200" />
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase block font-sans">Data Quality</span>
-            <span className="font-bold text-sky-600">{report.quality_score}%</span>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Section 1: Executive Summary */}
       <div className="mb-8">

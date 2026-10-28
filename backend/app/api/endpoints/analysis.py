@@ -20,6 +20,7 @@ from backend.app.models.schemas import (
 router = APIRouter()
 
 @router.post("", response_model=SessionResponse)
+@router.post("/query", response_model=SessionResponse)
 async def create_analysis(request: QueryRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
     Submits a natural language policy query and launches autonomous multi-agent analysis in background.

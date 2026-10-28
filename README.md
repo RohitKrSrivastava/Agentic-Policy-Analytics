@@ -5,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 18](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg)](https://www.typescriptlang.org/)
-[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-85%25-brightgreen.svg)](TESTING.md)
+[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-84.3%25-brightgreen.svg)](TESTING.md)
 [![Factuality Audit](https://img.shields.io/badge/Factuality%20Audit-Grounded-blue.svg)](TESTING.md)
 
 An enterprise-grade, production-ready Full-Stack Agentic Solution designed for public policy researchers, economists, and government analysts. The platform automates the extraction, quality auditing, econometric modeling, and policy synthesis of heterogeneous datasets across **DOS SingStat**, **Ministry of Manpower (MOM)**, **Data.gov.sg**, and internal government databases.
@@ -22,7 +22,7 @@ An enterprise-grade, production-ready Full-Stack Agentic Solution designed for p
 - **Grounded Factuality & Discrepancy Auditing**: Numerical value verification cross-checks quantitative statements against underlying Pandas source records and econometric metrics, populating discrepancies when ungrounded claims or fabrications occur.
 - **Interactive Visual Dashboard**: Dynamic Recharts dashboards showing Infocomm employment trajectories, 2025 projection cones, vacancy-to-unemployment tightness ratios, and wage premium comparisons.
 - **Export & Audit Suite**: 1-click downloads for formatted Markdown briefs, raw JSON data bundles, and binary PDF reports generated via `ReportLab`.
-- **Comprehensive Testing Suite**: **47 automated tests passing in ~9 seconds** with **85% backend test coverage** across unit, integration, query guardrails, multi-cloud fallback, adversarial hallucination detection, and performance benchmarks.
+- **Comprehensive Testing Suite**: **61 automated tests** (**53 backend pytest tests** with **84.34% test coverage** + **8 frontend vitest tests**) across unit, integration, query guardrails, multi-cloud fallback, scripted FakeProvider adversarial detection, live LLM golden set evaluation, and Locust performance benchmarks.
 
 ---
 

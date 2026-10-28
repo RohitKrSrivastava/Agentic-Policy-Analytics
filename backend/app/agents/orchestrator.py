@@ -99,7 +99,7 @@ class WorkflowOrchestrator:
         finally:
             db.close()
 
-    async def execute_workflow(self, query: str, provider_preference: str = "auto"):
+    async def execute_workflow(self, query: str, provider_preference: str = "auto", temperature: float = 0.2):
         """
         Executes end-to-end multi-agent research workflow:
         Coordinator (Planning) -> Extractor (Multi-Source Acquisition & Cleaning) -> Analytics (Modeling, RAG, Synthesis & Verification)
@@ -170,7 +170,7 @@ class WorkflowOrchestrator:
                     "quality_reports": [],
                     "report": guardrail_report.model_dump(mode="json")
                 })
-                return
+                return guardrail_report
 
             # 2. Extraction & Data Quality Phase (Parameterized by Coordinator Plan)
             params = plan_res.get("parameters", {})
@@ -190,7 +190,9 @@ class WorkflowOrchestrator:
             extractor = DataExtractionAgent(self.session_id, self.log_step_db)
             extraction_res = await extractor.extract_sources(
                 plan=plan_res.get("plan"),
-                parameters=params
+                parameters=params,
+                provider_preference=provider_preference,
+                query=query
             )
 
             datasets = extraction_res["datasets"]
@@ -198,64 +200,101 @@ class WorkflowOrchestrator:
             provenance = extraction_res.get("provenance", {})
             overall_quality = extraction_res.get("overall_quality_score", 0.0)
 
-            # Coverage Check & Agentic Replanning Node:
-            # If primary time series (singstat) is empty, Coordinator replans data strategy
-            # to query Overall Economy baseline to guarantee grounded analysis.
-            singstat_data = datasets.get("singstat", [])
-            if (not singstat_data or len(singstat_data) == 0) and not plan_res.get("is_replanned", False):
+            # Generalized ReAct Replanning Node:
+            # Handles coverage gaps across any critical source (SingStat, MOM, Wages) at most twice.
+            replan_count = 0
+            max_replans = 2
+            from backend.app.agents.extractor import _merge_record_lists
+
+            while replan_count < max_replans:
+                empty_sources = []
+                if not datasets.get("singstat"):
+                    empty_sources.append("singstat")
+                if not datasets.get("mom"):
+                    empty_sources.append("mom")
+                if not datasets.get("wages"):
+                    empty_sources.append("wages")
+
+                if not empty_sources:
+                    break
+
+                replan_count += 1
                 from backend.app.models.schemas import StepType
+
+                replan_actions = []
+                replanned_subtasks = []
+                replanned_params = dict(params)
+
+                if "singstat" in empty_sources:
+                    replanned_params["sector"] = "Overall Economy"
+                    replanned_params["start_year"] = 2020
+                    replanned_params["end_year"] = 2024
+                    replan_actions.append("switched sector to Overall Economy baseline (2020-2024)")
+                    replanned_subtasks.append({
+                        "task_id": f"REPLAN-SING-{replan_count}",
+                        "source": "DOS SingStat",
+                        "tool_name": "query_singstat_table",
+                        "reasoning": "Acquire Overall Economy employment baseline (2020-2024).",
+                        "parameters": replanned_params
+                    })
+
+                if "mom" in empty_sources:
+                    replanned_params["start_year"] = 2020
+                    replanned_params["end_year"] = 2024
+                    replan_actions.append("widened MOM observation window to 2020-2024")
+                    replanned_subtasks.append({
+                        "task_id": f"REPLAN-MOM-{replan_count}",
+                        "source": "MOM Statistics",
+                        "tool_name": "query_mom_statistics",
+                        "reasoning": "Acquire macro vacancies and retrenchments (2020-2024).",
+                        "parameters": replanned_params
+                    })
+
+                if "wages" in empty_sources:
+                    replanned_params["industry"] = "Overall Economy"
+                    replan_actions.append("switched wage benchmark to national overall baseline")
+                    replanned_subtasks.append({
+                        "task_id": f"REPLAN-WAGE-{replan_count}",
+                        "source": "Data.gov.sg",
+                        "tool_name": "query_datagovsg_api",
+                        "reasoning": "Acquire national median wage benchmarks.",
+                        "parameters": replanned_params
+                    })
+
+                diagnosis = f"Coverage gap detected in [{', '.join(empty_sources)}]. Replanning strategy (iteration {replan_count}/{max_replans}): {', '.join(replan_actions)}."
                 await coordinator.log_step(
                     step_type=StepType.REFLECTION,
-                    title="Reflection: Replanning Data Strategy (Coverage Gap Detected)",
-                    content=f"Primary employment series returned 0 records for sector='{sector_name}' ({start_yr}-{end_yr}). Formulating fallback replan to query Overall Economy baseline (2020-2024)."
+                    title=f"Reflection: Replanning Data Strategy (Coverage Gap Detected - Iteration {replan_count})",
+                    content=diagnosis
                 )
 
-                replanned_params = dict(params)
-                replanned_params["sector"] = "Overall Economy"
-                replanned_params["start_year"] = 2020
-                replanned_params["end_year"] = 2024
-
                 replanned_plan = {
-                    "thought": "Coverage gap mitigation: shifting to authoritative Overall Economy baseline.",
-                    "subtasks": [
-                        {
-                            "task_id": "REPLAN-01",
-                            "source": "DOS SingStat",
-                            "tool_name": "query_singstat_table",
-                            "reasoning": "Acquire Overall Economy employment baseline (2020-2024).",
-                            "parameters": replanned_params
-                        },
-                        {
-                            "task_id": "REPLAN-02",
-                            "source": "MOM Statistics",
-                            "tool_name": "query_mom_statistics",
-                            "reasoning": "Acquire macro vacancies and retrenchments (2020-2024).",
-                            "parameters": replanned_params
-                        }
-                    ],
-                    "expected_hypotheses": ["Overall economy provides macro employment benchmark for comparative policy analysis."]
+                    "thought": diagnosis,
+                    "subtasks": replanned_subtasks,
+                    "expected_hypotheses": ["Replanned sources provide empirical baseline foundation for comparative analysis."]
                 }
 
                 await self.update_session_state(
                     status=SessionStatus.EXTRACTING,
-                    progress_pct=45,
+                    progress_pct=40 + replan_count * 10,
                     current_agent="Data Extraction Agent",
-                    current_step="Executing replanned data acquisition for Overall Economy baseline"
+                    current_step=f"Executing replanned data acquisition ({', '.join(empty_sources)})"
                 )
 
                 replan_res = await extractor.extract_sources(
                     plan=replanned_plan,
-                    parameters=replanned_params
+                    parameters=replanned_params,
+                    provider_preference="local_fallback",
+                    query=query
                 )
 
-                if replan_res["datasets"].get("singstat"):
-                    datasets["singstat"] = replan_res["datasets"]["singstat"]
-                if replan_res["datasets"].get("mom"):
-                    datasets["mom"] = replan_res["datasets"]["mom"]
+                for k, v in replan_res["datasets"].items():
+                    if v:
+                        datasets[k] = _merge_record_lists(datasets.get(k), v) if isinstance(v, list) else v
                 quality_reports.extend(replan_res.get("quality_reports", []))
                 provenance.update(replan_res.get("provenance", {}))
                 params = replanned_params
-                sector_name = replanned_params["sector"]
+                sector_name = replanned_params.get("sector", sector_name)
 
             # Save quality reports to DB & broadcast
             await self.update_session_state(
@@ -274,7 +313,8 @@ class WorkflowOrchestrator:
                 provider_preference=provider_preference,
                 provenance=provenance,
                 overall_quality_score=overall_quality,
-                parameters=params
+                parameters=params,
+                temperature=temperature
             )
 
             final_report = analysis_res["report"]
@@ -304,6 +344,7 @@ class WorkflowOrchestrator:
             })
 
             logger.info(f"Session {self.session_id} successfully completed.")
+            return final_report
 
         except Exception as e:
             logger.error(f"Workflow execution failed for session {self.session_id}: {e}", exc_info=True)
@@ -314,3 +355,8 @@ class WorkflowOrchestrator:
                 current_step="Execution halted due to error",
                 error_message=str(e)
             )
+            return None
+
+
+# Backward-compatible alias
+PolicyOrchestrator = WorkflowOrchestrator

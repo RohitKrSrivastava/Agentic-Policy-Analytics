@@ -240,10 +240,10 @@ class GovernmentDataConnector:
 
             is_success = len(validated_records) > 0
             return {
-                "source": "Data.gov.sg API v2 (Verified Snapshot)",
+                "source": "Data.gov.sg API v2 (Synthetic Benchmark)",
                 "dataset_id": resource_id,
                 "format": "JSON API",
-                "access_method": "Local Verified Snapshot (Cached Offline Data)",
+                "access_method": "Synthetic benchmark (offline)",
                 "status": "success" if is_success else "empty",
                 "total_records": len(validated_records),
                 "data": validated_records,

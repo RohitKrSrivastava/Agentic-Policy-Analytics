@@ -77,6 +77,8 @@ export interface PolicyReport {
   citations: PolicyCitation[];
   quality_score: number;
   hallucination_score: number;
+  verification_status?: 'verified' | 'partially_verified' | 'unverified' | 'unverifiable';
+  discrepancy_count?: number;
   generated_at: string;
 }
 

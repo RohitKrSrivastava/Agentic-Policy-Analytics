@@ -149,34 +149,34 @@ class HallucinationVerificationGuard:
         # 1. Computed Metrics
         metrics = ground_truth.get("metrics", {})
         if isinstance(metrics, dict):
-            if "tech_cagr" in metrics:
+            if metrics.get("tech_cagr") is not None:
                 add_entry(metrics["tech_cagr"], "CAGR", "computed_metrics", f"Tech CAGR: {metrics['tech_cagr']}%", tol=0.05)
-            if "overall_cagr" in metrics:
+            if metrics.get("overall_cagr") is not None:
                 add_entry(metrics["overall_cagr"], "CAGR", "computed_metrics", f"Overall CAGR: {metrics['overall_cagr']}%", tol=0.05)
-            if "tech_total_growth_pct" in metrics:
+            if metrics.get("tech_total_growth_pct") is not None:
                 add_entry(metrics["tech_total_growth_pct"], "PERCENTAGE", "computed_metrics", f"Tech total growth: {metrics['tech_total_growth_pct']}%", tol=0.1)
-            if "net_jobs_added" in metrics:
+            if metrics.get("net_jobs_added") is not None:
                 add_entry(metrics["net_jobs_added"], "HEADCOUNT", "computed_metrics", f"Net jobs added: {metrics['net_jobs_added']}", tol=1.0)
                 add_entry(round(metrics["net_jobs_added"] / 1000.0, 1), "HEADCOUNT", "computed_metrics", f"Net jobs added (k): {metrics['net_jobs_added']/1000.0:.1f}k", tol=0.1)
-            if "tech_median_wage" in metrics:
+            if metrics.get("tech_median_wage") is not None:
                 add_entry(metrics["tech_median_wage"], "WAGE", "computed_metrics", f"Tech median wage: S${metrics['tech_median_wage']}", tol=2.0)
-            if "national_median_wage" in metrics:
+            if metrics.get("national_median_wage") is not None:
                 add_entry(metrics["national_median_wage"], "WAGE", "computed_metrics", f"National median wage: S${metrics['national_median_wage']}", tol=2.0)
-            if "tech_premium_pct" in metrics:
+            if metrics.get("tech_premium_pct") is not None:
                 add_entry(metrics["tech_premium_pct"], "PERCENTAGE", "computed_metrics", f"Tech wage premium: {metrics['tech_premium_pct']}%", tol=0.1)
-            if "peak_vacancies" in metrics:
+            if metrics.get("peak_vacancies") is not None:
                 add_entry(metrics["peak_vacancies"], "VACANCY", "computed_metrics", f"Peak vacancies: {metrics['peak_vacancies']}", tol=1.0)
                 add_entry(round(metrics["peak_vacancies"] / 1000.0, 1), "VACANCY", "computed_metrics", f"Peak vacancies (k): {metrics['peak_vacancies']/1000.0:.1f}k", tol=0.1)
-            if "latest_vacancies" in metrics:
+            if metrics.get("latest_vacancies") is not None:
                 add_entry(metrics["latest_vacancies"], "VACANCY", "computed_metrics", f"Latest vacancies: {metrics['latest_vacancies']}", tol=1.0)
                 add_entry(round(metrics["latest_vacancies"] / 1000.0, 1), "VACANCY", "computed_metrics", f"Latest vacancies (k): {metrics['latest_vacancies']/1000.0:.1f}k", tol=0.1)
-            if "peak_retrenchments" in metrics:
+            if metrics.get("peak_retrenchments") is not None:
                 add_entry(metrics["peak_retrenchments"], "RETRENCHMENT", "computed_metrics", f"Peak retrenchments: {metrics['peak_retrenchments']}", tol=1.0)
-            if "latest_retrenchments" in metrics:
+            if metrics.get("latest_retrenchments") is not None:
                 add_entry(metrics["latest_retrenchments"], "RETRENCHMENT", "computed_metrics", f"Latest retrenchments: {metrics['latest_retrenchments']}", tol=1.0)
-            if "latest_reentry_rate" in metrics:
+            if metrics.get("latest_reentry_rate") is not None:
                 add_entry(metrics["latest_reentry_rate"], "REENTRY_RATE", "computed_metrics", f"Reentry rate: {metrics['latest_reentry_rate']}%", tol=0.1)
-            if "vacancy_to_unemployed_ratio" in metrics:
+            if metrics.get("vacancy_to_unemployed_ratio") is not None:
                 add_entry(metrics["vacancy_to_unemployed_ratio"], "RATIO", "computed_metrics", f"Vacancy to unemployed ratio: {metrics['vacancy_to_unemployed_ratio']}", tol=0.05)
 
             for k, v in metrics.items():

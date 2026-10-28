@@ -84,7 +84,16 @@ flowchart TD
 
 ## 2. Autonomous Multi-Agent System & ReAct Pattern
 
-The platform implements the canonical **ReAct (Reasoning, Action, Observation, Reflection)** pattern across three specialized autonomous agents and one verification guard:
+### Custom Asynchronous Blackboard State Machine (Architectural Decision)
+Rather than introducing external orchestration frameworks like LangGraph or CrewAI, the platform implements an **explicit, custom asynchronous Blackboard State Machine** in Python / FastAPI. This design choice provides four key advantages for government policy applications:
+1. **Zero Black-Box Overhead**: Full visibility and deterministic debugging over every agent deliberation cycle without framework abstraction layers.
+2. **Native WebSocket Streaming**: Fine-grained, real-time broadcasts of ReAct steps (`thought`, `action`, `observation`, `reflection`) streamed directly to the frontend monitor as they occur.
+3. **Thread-Safe Audit Trail**: Immutable persistence of all agent thoughts, tool inputs, and tool outputs directly into SQLite for Whole-of-Government (WOG) accountability.
+4. **Typed Schema Enforcement**: Every authorized tool binds to a strict Pydantic model (`tool.args_schema.model_validate`), ensuring malformed arguments are trapped at the boundary.
+
+---
+
+### Agent Responsibilities & ReAct Execution Cycles
 
 ### 1. Data Coordinator Agent
 - **Responsibility**: Interprets the user's policy query using natural language reasoning, formulates research hypotheses, establishes required data horizons, and decomposes the analytical problem into a dependency graph of subtasks.
@@ -94,29 +103,38 @@ The platform implements the canonical **ReAct (Reasoning, Action, Observation, R
   - `Observation`: Validates the generated execution plan against available data sources.
   - `Delegation`: Hands off acquisition subtasks to the Data Extraction Agent.
 
-### 2. Data Extraction Agent
-- **Responsibility**: Interfaces with heterogeneous Singapore public sector APIs, spreadsheets, databases, and CSV repositories.
-- **Decision Loop**:
-  - `Thought`: Identifies required endpoint or file connector.
-  - `Action`: Invokes specialized tool (`query_singstat_table`, `query_mom_statistics`, `query_datagovsg_api`, `fetch_mom_turnover_excel`, `fetch_internal_policy_kpis`).
-  - `Observation`: Audits incoming records, verifies schema alignment, and passes the payload through the automated `DataQualityEngine`.
-  - `Reflection`: Summarizes completeness scores, imputation counts, and outlier interventions.
+### 2. Data Extraction Agent (ReAct Decision Loop)
+- **Responsibility**: Deliberates on empirical data requirements, dynamically invokes tools from the authorized `TOOL_REGISTRY`, observes results in a persistent scratchpad, and decides when data collection is complete.
+- **ReAct Execution Cycle**:
+  - `Deliberation & Prompting`: Live LLM receives query objectives, registry tools with JSON schemas, and prior scratchpad observations.
+  - `Tool Registry Validation`: Dispatches to typed tool functions (`query_singstat_table`, `query_mom_statistics`, `query_datagovsg_api`, `fetch_mom_turnover_excel`, `fetch_internal_policy_kpis`).
+  - `Typed Argument Validation`: Executes `tool.args_schema.model_validate(args)`. On validation failure, logs an `Observation` with schema requirements and prompts the agent to correct parameters.
+  - `Unknown Tool Reflection`: If the LLM proposes an unregistered tool, an `Observation` lists authorized tools to allow the model to self-correct (eliminating fragile regex remapping).
+  - `Duplicate Call Guard`: Enforces step limits (max 8 steps) and blocks identical consecutive invocations.
+  - `Deterministic Plan Fallback`: Automatically activates if `local_fallback` is active or if LLM JSON parsing fails consecutively.
 
-### 3. Analytics Agent
-- **Responsibility**: Executes rigorous econometric calculations, time-series projections, RAG retrieval from Singapore policy whitepapers, and structured report synthesis.
-- **Decision Loop**:
-  - `Thought`: Computes CAGR, net job growth, and linear trend slopes.
-  - `Action`: Invokes `calculate_time_series_trends`, `analyze_labour_market_tightness`, and `analyze_wages_and_premium`.
-  - `Observation`: Verifies mathematical integrity, generates `ChartSpecification` objects for frontend rendering, and retrieves relevant policy context from the RAG knowledge base.
-  - `Synthesis`: Formulates executive summary, categorized empirical findings, and policy recommendations with authoritative citation IDs.
+### 3. Orchestrator Generalized Replanning Node
+- **Responsibility**: Inspects acquired datasets for coverage gaps across **all critical sources** (SingStat employment, MOM tightness, Data.gov.sg wages).
+- **Replanning Logic (Max 2 Iterations)**:
+  - If a source is empty, the Coordinator logs `StepType.REFLECTION` detailing the coverage gap.
+  - Automatically executes remediation: widens temporal observation windows to 2020–2024, switches sector focus to the `Overall Economy` baseline, or queries national wage medians.
+  - Merges replanned datasets into blackboard state so downstream econometric models remain fully grounded.
 
-### 4. Hallucination Verification Guard
+### 4. Analytics Agent & Self-Correction Repair Loop
+- **Responsibility**: Executes econometric modeling (CAGR, Beveridge curve vacancy-to-retrenchment correlation $r$, $p$-value, 95% forecast prediction intervals), policy RAG retrieval, and policy brief synthesis.
+- **Self-Correction Loop**:
+  - Submits synthesized report to the `HallucinationVerificationGuard`.
+  - If discrepancies or ungrounded claims are detected, executes up to 2 repair iterations with targeted repair prompts.
+  - Deterministic fallback: prunes ungrounded sentences using sentence-level boundary extraction if hallucinated tokens persist.
+  - Emits `StepType.REFLECTION` for each self-correction iteration and records the final `verification_status` (`verified`, `partially_verified`, `unverifiable`).
+
+### 5. Hallucination Verification Guard
 - **Responsibility**: Performs automated, deterministic ground-truth auditing on the synthesized report before final delivery.
 - **Decision Loop**:
   - Extracts all numerical tokens (percentages, dollar figures, headcounts, ratios).
-  - Cross-references each claim against the ground-truth values in the underlying Pandas DataFrames.
+  - Cross-references each claim against the ground-truth values in the underlying Pandas DataFrames and RAG policy chunks (`RAG_POLICY_FACT`).
   - Computes the **Hallucination Risk Score** and **Accuracy Percentage**.
-  - Stamps the final report with an auditable verification certificate.
+  - Binds the verification status badge (`VERIFIED` in green, `PARTIALLY VERIFIED` with discrepancy count in amber, `UNVERIFIED`/`UNVERIFIABLE` in red).
 
 ---
 

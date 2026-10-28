@@ -276,7 +276,7 @@ async def test_replan_node_on_empty_data():
     real_extract = DataExtractionAgent.extract_sources
     call_count = 0
 
-    async def mock_extract(self, plan=None, parameters=None):
+    async def mock_extract(self, plan=None, parameters=None, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -290,7 +290,7 @@ async def test_replan_node_on_empty_data():
             }
         else:
             # Replan pass: return real data
-            return await real_extract(self, plan=plan, parameters=parameters)
+            return await real_extract(self, plan=plan, parameters=parameters, **kwargs)
 
     with patch.object(DataExtractionAgent, "extract_sources", side_effect=mock_extract, autospec=True):
         await orchestrator.execute_workflow(

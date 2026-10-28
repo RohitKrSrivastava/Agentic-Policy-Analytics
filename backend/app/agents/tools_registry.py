@@ -1,29 +1,88 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.app.tools.government_sources import data_connector
 
 
 class SectorWindowArgs(BaseModel):
-    sector: Literal["Information & Communications", "Financial & Insurance Services", "Overall Economy"] = "Information & Communications"
-    start_year: int = Field(default=2020, ge=2020, le=2024, description="Start year of observation")
-    end_year: int = Field(default=2024, ge=2020, le=2024, description="End year of observation")
+    sector: str = Field(
+        default="Information & Communications",
+        description="Target Singapore sector: 'Information & Communications', 'Financial & Insurance Services', or 'Overall Economy'"
+    )
+    start_year: int = Field(default=2020, ge=2020, le=2024, description="Start year of observation (2020-2024)")
+    end_year: int = Field(default=2024, ge=2020, le=2024, description="End year of observation (2020-2024)")
+
+    @field_validator("sector", mode="before")
+    @classmethod
+    def normalize_sector(cls, v: Any) -> str:
+        s = str(v).lower()
+        if any(k in s for k in ["fin", "bank", "insur"]):
+            return "Financial & Insurance Services"
+        elif any(k in s for k in ["overall", "economy", "national"]):
+            return "Overall Economy"
+        elif any(k in s for k in ["tech", "ict", "info", "software", "digital"]):
+            return "Information & Communications"
+        return str(v)
+
+    @field_validator("end_year")
+    @classmethod
+    def validate_year_order(cls, v: int, info) -> int:
+        if "start_year" in info.data and v < info.data["start_year"]:
+            raise ValueError(f"end_year ({v}) cannot precede start_year ({info.data['start_year']})")
+        return v
 
 
 class YearWindowArgs(BaseModel):
-    start_year: int = Field(default=2020, ge=2020, le=2024, description="Start year of observation")
-    end_year: int = Field(default=2024, ge=2020, le=2024, description="End year of observation")
+    start_year: int = Field(default=2020, ge=2020, le=2024, description="Start year of observation (2020-2024)")
+    end_year: int = Field(default=2024, ge=2020, le=2024, description="End year of observation (2020-2024)")
+
+    @field_validator("end_year")
+    @classmethod
+    def validate_year_order(cls, v: int, info) -> int:
+        if "start_year" in info.data and v < info.data["start_year"]:
+            raise ValueError(f"end_year ({v}) cannot precede start_year ({info.data['start_year']})")
+        return v
 
 
 class IndustryWageArgs(BaseModel):
-    industry: str = Field(default="Information & Communications", description="Target industry sector")
+    industry: str = Field(
+        default="Information & Communications",
+        description="Target industry sector for wage distribution benchmark"
+    )
+
+    @field_validator("industry", mode="before")
+    @classmethod
+    def normalize_industry(cls, v: Any) -> str:
+        s = str(v).lower()
+        if any(k in s for k in ["fin", "bank", "insur"]):
+            return "Financial & Insurance Services"
+        elif any(k in s for k in ["overall", "economy", "national"]):
+            return "Overall Economy"
+        elif any(k in s for k in ["tech", "ict", "info", "software", "digital"]):
+            return "Information & Communications"
+        return str(v)
 
 
 class SectorTurnoverArgs(BaseModel):
-    sector: str = Field(default="Information & Communications", description="Target industry sector")
+    sector: str = Field(
+        default="Information & Communications",
+        description="Target industry sector for labour turnover analysis"
+    )
+
+    @field_validator("sector", mode="before")
+    @classmethod
+    def normalize_sector(cls, v: Any) -> str:
+        s = str(v).lower()
+        if any(k in s for k in ["fin", "bank", "insur"]):
+            return "Financial & Insurance Services"
+        elif any(k in s for k in ["overall", "economy", "national"]):
+            return "Overall Economy"
+        elif any(k in s for k in ["tech", "ict", "info", "software", "digital"]):
+            return "Information & Communications"
+        return str(v)
 
 
 class EmptyArgs(BaseModel):

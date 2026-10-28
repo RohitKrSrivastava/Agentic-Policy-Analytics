@@ -58,7 +58,8 @@ class AnalyticsAgent(BaseAgent):
         provider_preference: str = "auto",
         provenance: dict[str, str] | None = None,
         overall_quality_score: float | None = None,
-        parameters: dict[str, Any] | None = None
+        parameters: dict[str, Any] | None = None,
+        temperature: float = 0.2
     ) -> dict[str, Any]:
         charts: list[ChartSpecification] = []
         provenance = provenance or {}
@@ -257,7 +258,8 @@ Output format must be valid JSON matching this schema:
             prompt=synthesis_prompt,
             system_prompt="You are a government policy analyst. Synthesize accurate, evidence-backed policy insights.",
             json_mode=True,
-            preferred_provider=provider_preference
+            preferred_provider=provider_preference,
+            temperature=temperature
         )
 
         try:
@@ -435,7 +437,8 @@ Output format must be valid JSON matching this schema:
             citations=citations,
             quality_score=measured_quality,
             hallucination_score=verification_result["hallucination_score"],
-            verification_status=verification_result.get("verification_status", "verified")
+            verification_status=verification_result.get("verification_status", "verified"),
+            discrepancy_count=len(verification_result.get("discrepancies", []))
         )
 
         return {
@@ -467,7 +470,7 @@ Rules:
 """
         resp, _ = await llm_router.generate(
             prompt=repair_prompt,
-            system_prompt="You are a government policy editor. Ensure 100% factual fidelity and eliminate unverified numbers.",
+            system_prompt="You are a government policy editor. Ensure factual fidelity and eliminate unverified numbers.",
             json_mode=True,
             preferred_provider=provider_preference
         )

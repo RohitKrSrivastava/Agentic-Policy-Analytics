@@ -5,6 +5,8 @@ on:
     branches: [ main, master, dev ]
   pull_request:
     branches: [ main, master, dev ]
+  schedule:
+    - cron: '0 2 * * *' # Nightly execution for live LLM evaluation golden set
 
 jobs:
   lint:
@@ -100,6 +102,10 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Run Frontend Vitest Suite
+        working-directory: frontend
+        run: npm test
 
       - name: Run Vite Production Build
         working-directory: frontend

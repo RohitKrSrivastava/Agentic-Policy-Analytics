@@ -118,9 +118,9 @@ async def test_analytics_agent_synthesis():
 @pytest.mark.asyncio
 async def test_tool_registry_and_unknown_tool_recovery():
     """
-    Finding 3 / ReAct Agent Loop:
-    When an unknown or hallucinated tool name is planned, Extractor logs a tool check,
-    triggers reflection for agentic tool recovery, and maps it to an authorized tool.
+    Step 2 / ReAct Agent Loop:
+    Make unknown tools an Observation that lists the valid tools and lets the agent correct itself.
+    Keyword remapping is removed.
     """
     logged_steps = []
     async def dummy_callback(step):
@@ -132,20 +132,24 @@ async def test_tool_registry_and_unknown_tool_recovery():
         "subtasks": [
             {
                 "task_id": "ST-UNKNOWN-01",
-                "tool_name": "query_custom_singstat_employment_table",
-                "reasoning": "Attempt query with hallucinated tool name",
+                "tool_name": "query_invented_unauthorized_tool",
+                "reasoning": "Attempt query with invented tool name",
                 "parameters": {"sector": "Information & Communications", "start_year": 2020, "end_year": 2024}
             }
         ]
     }
     res = await extractor.extract_sources(plan=custom_plan)
-    assert "singstat" in res["datasets"]
-    assert len(res["datasets"]["singstat"]) > 0
+    assert "query_invented_unauthorized_tool" in res["missing_sources"]
 
-    # Verify reflection step for agentic tool recovery
-    recovery_steps = [s for s in logged_steps if s.step_type == StepType.REFLECTION and "Agentic Tool Recovery" in s.title]
-    assert len(recovery_steps) >= 1
-    assert "query_singstat_table" in recovery_steps[0].content
+    # Verify that an observation was logged listing the authorized tools
+    unknown_tool_observations = [
+        s for s in logged_steps
+        if s.step_type == StepType.OBSERVATION and "query_invented_unauthorized_tool" in s.content
+    ]
+    assert len(unknown_tool_observations) >= 1
+    obs_content = unknown_tool_observations[0].content
+    assert "authorized Tool Registry" in obs_content
+    assert "query_singstat_table" in obs_content
 
 
 @pytest.mark.asyncio
