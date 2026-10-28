@@ -130,7 +130,7 @@ export const AgentActivityMonitor: React.FC<AgentActivityMonitorProps> = ({
           { name: "Coordinator Agent", role: "Plans workflow & delegates", icon: BrainCircuit, activeAt: ["planning", "extracting", "analyzing", "completed"] },
           { name: "Extraction Agent", role: "SingStat, MOM, Data.gov.sg", icon: Search, activeAt: ["extracting", "analyzing", "completed"] },
           { name: "Analytics Agent", role: "Econometric models & RAG", icon: BarChart3, activeAt: ["analyzing", "completed"] },
-          { name: "Hallucination Guard", role: "100% Factuality Verification", icon: ShieldCheck, activeAt: ["completed"] },
+          { name: "Hallucination Guard", role: "Factuality & Grounding Audit", icon: ShieldCheck, activeAt: ["completed"] },
         ].map((ag, i) => {
           const isActive = ag.activeAt.includes(status);
           const isCurrent = currentAgent?.includes(ag.name.split(" ")[0]);

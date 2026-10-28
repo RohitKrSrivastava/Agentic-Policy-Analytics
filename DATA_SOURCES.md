@@ -14,7 +14,7 @@ Pursuant to the assignment guidelines allowing mock or simplified benchmark data
 | :--- | :--- | :--- | :--- |
 | **DOS SingStat Table 14.1** | `CSV` | Based on historical Singapore Department of Statistics Infocomm employment series (2020-2024). | Cleaned historical snapshot calibrated against official published quarterly benchmarks. |
 | **MOM Labour Market Report** | `JSON` | Modeled after MOM quarterly labour market releases (job vacancies, retrenchments, 6-month re-entry rate). | Structured JSON snapshot capturing the 2022-2023 restructuring cycle and 2024 recovery. |
-| **Data.gov.sg Wages API** | `REST API / JSON` | Live GovTech Data.gov.sg API v2 (`datastore_search` endpoint), with local verified fallback snapshot. | Live REST API query validated via Pydantic schema (`DataGovSgWageRecord`). Falls back to offline snapshot if air-gapped or network-restricted. |
+| **Data.gov.sg Wages API** | `REST API / JSON` | Live GovTech Data.gov.sg API v2 (`datastore_search` endpoint), with local verified fallback snapshot. | Live REST API query validated via Pydantic schema (`DataGovSgWageRecord`). Falls back to offline snapshot if in offline mode or network-restricted. |
 | **MOM Labour Turnover Survey** | `Excel (.xlsx)` | Synthesized benchmark based on MOM sector recruitment and resignation rate distributions. | Programmatically generated via [`backend/data/seed_data.py`](backend/data/seed_data.py) using `openpyxl`. |
 | **Internal Policy DB** | `SQLite (.db)` | Synthetic policy governance benchmark representing IMDA/MDDI TeSA and National AI Strategy 2.0 KPI targets. | Programmatically generated via [`backend/data/seed_data.py`](backend/data/seed_data.py) in SQLite. |
 
@@ -100,9 +100,9 @@ flowchart LR
 
 ## 4. Dual Live/Mock Architecture & Transparency
 
-To ensure operational reliability during technical assessments, continuous integration (CI) test runs, and offline or air-gapped deployments:
+To ensure operational reliability during technical assessments, continuous integration (CI) test runs, and offline deterministic deployments:
 
 1. **Active Live Probe**: When querying Data.gov.sg, `GovernmentDataConnector` attempts an asynchronous HTTP call to `https://data.gov.sg/api/action/datastore_search` with a 4.0-second timeout.
 2. **Schema Ingestion Validation**: Records are validated against `DataGovSgWageRecord` before downstream consumption.
 3. **Graceful Fallback**: If the network times out, rate-limits (HTTP 429), or returns an error, the connector automatically switches to the verified offline snapshot stored at `backend/data/raw/datagovsg_wages_by_sector.json`.
-4. **Dynamic Citation Provenance**: The exact access method (`Live REST API` vs `Local Verified Snapshot (Cached Offline Data)`) is dynamically emitted into the agent observation trace and the final report citations.
+4. **Dynamic Citation Provenance**: The exact access method (`Live REST API` vs `Synthetic benchmark (offline)`) is dynamically emitted into the agent observation trace and the final report citations.

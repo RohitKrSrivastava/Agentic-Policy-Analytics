@@ -1,7 +1,9 @@
+
 import pytest
-import os
+
 from backend.app.tools.government_sources import data_connector
 from backend.app.tools.statistical_engine import statistical_engine
+
 
 @pytest.mark.asyncio
 async def test_singstat_csv_extraction():
@@ -61,3 +63,39 @@ def test_employment_dynamics_analytics():
     assert res["tech_end_employment"] == 175.1
     assert res["net_jobs_added"] == 56700
     assert res["chart"].chart_type == "composed"
+
+
+def test_cross_indicator_correlation_and_confidence_bands():
+    """
+    Finding 10: Econometric Indicator Correlation & 95% Confidence Intervals
+    Verifies Pearson r, p-value, sample size N, and 95% forecast prediction bands.
+    """
+    # 1. 95% Confidence bands test
+    quarterly_series = [
+        {"year": 2020, "quarter": f"Q{q}", "sector": "Information & Communications", "employment_thousands": 118.0 + i * 2.8}
+        for i, q in enumerate([1, 2, 3, 4] * 3)
+    ]
+    res = statistical_engine.analyze_employment_dynamics(quarterly_series)
+    assert res["forecast_confidence_band"] is not None
+    cb = res["forecast_confidence_band"]
+    assert "r_squared" in cb
+    assert "p_value" in cb
+    assert cb["q4_lower_95"] < cb["q4_forecast"] < cb["q4_upper_95"]
+
+    # 2. Cross-indicator correlation test
+    singstat_records = [
+        {"year": 2020 + (i // 4), "quarter": f"Q{(i % 4) + 1}", "sector": "Information & Communications", "employment_thousands": 120.0 + i * 2.5}
+        for i in range(12)
+    ]
+    mom_records = [
+        {"year": 2020 + (i // 4), "quarter": f"Q{(i % 4) + 1}", "period": f"{2020 + (i // 4)}-Q{(i % 4) + 1}", "tech_job_vacancies": 20000 - i * 500, "tech_retrenchments": 500 + i * 80}
+        for i in range(12)
+    ]
+    corr = statistical_engine.calculate_cross_indicator_correlation(singstat_records, mom_records)
+    assert corr["has_correlation"] is True
+    assert corr["sample_size"] == 12
+    assert "sample_limitation_note" in corr
+    vr = corr["vacancies_vs_retrenchments"]
+    assert vr["pearson_r"] is not None
+    assert vr["p_value"] is not None
+    assert "interpretive_summary" in vr

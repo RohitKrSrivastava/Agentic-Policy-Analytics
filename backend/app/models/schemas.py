@@ -89,6 +89,8 @@ class PolicyReport(BaseModel):
     citations: list[PolicyCitation]
     quality_score: float
     hallucination_score: float # 0 to 1.0 (lower is better; factual fidelity)
+    verification_status: str = "verified" # 'verified', 'partially_verified', 'unverified', 'unverifiable'
+    discrepancy_count: int = 0
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class QueryRequest(BaseModel):

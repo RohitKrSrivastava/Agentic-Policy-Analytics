@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Enterprise Multi-Agent Policy Data Analytics Platform with Multi-Cloud LLM Fallback, Singapore Open Data Integration, ReAct Thought-Action Orchestration, and Verifiable Factuality Guard.",
+    description="Research Prototype Multi-Agent Policy Data Analytics Platform with Multi-Cloud LLM Fallback, Singapore Open Data Integration, ReAct Thought-Action Orchestration, and Verifiable Factuality Guard.",
     lifespan=lifespan
 )
 

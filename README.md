@@ -5,10 +5,10 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 18](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg)](https://www.typescriptlang.org/)
-[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-84%25-brightgreen.svg)](TESTING.md)
+[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-84.8%25-brightgreen.svg)](TESTING.md)
 [![Factuality Audit](https://img.shields.io/badge/Factuality%20Audit-Grounded-blue.svg)](TESTING.md)
 
-An enterprise-grade, production-ready Full-Stack Agentic Solution designed for public policy researchers, economists, and government analysts. The platform automates the extraction, quality auditing, econometric modeling, and policy synthesis of heterogeneous datasets across **DOS SingStat**, **Ministry of Manpower (MOM)**, **Data.gov.sg**, and internal government databases.
+A research prototype full-stack agentic platform designed for public policy researchers, economists, and government analysts. The platform automates the extraction, quality auditing, econometric modeling, and policy synthesis of heterogeneous datasets across **DOS SingStat**, **Ministry of Manpower (MOM)**, **Data.gov.sg**, and internal government databases.
 
 ---
 
@@ -22,7 +22,7 @@ An enterprise-grade, production-ready Full-Stack Agentic Solution designed for p
 - **Grounded Factuality & Discrepancy Auditing**: Numerical value verification cross-checks quantitative statements against underlying Pandas source records and econometric metrics, populating discrepancies when ungrounded claims or fabrications occur.
 - **Interactive Visual Dashboard**: Dynamic Recharts dashboards showing Infocomm employment trajectories, 2025 projection cones, vacancy-to-unemployment tightness ratios, and wage premium comparisons.
 - **Export & Audit Suite**: 1-click downloads for formatted Markdown briefs, raw JSON data bundles, and binary PDF reports generated via `ReportLab`.
-- **Comprehensive Testing Suite**: **41 automated tests passing in ~13 seconds** with **84% backend test coverage** across unit, integration, query guardrails, multi-cloud fallback, adversarial hallucination detection, and performance benchmarks.
+- **Comprehensive Testing Suite**: **61 automated tests** (**53 backend pytest tests** with **84.34% test coverage** + **8 frontend vitest tests**) across unit, integration, query guardrails, multi-cloud fallback, scripted FakeProvider adversarial detection, live LLM golden set evaluation, and Locust performance benchmarks.
 
 ---
 
@@ -164,23 +164,25 @@ docker-compose up --build
 
 ## 🧪 Comprehensive Testing & Validation
 
-The test suite contains **41 unit, integration, resilience, and concurrency tests**:
+The test suite contains **63 automated tests** across the full stack (55 backend unit, integration, ReAct, and guardrail tests + 8 frontend Vitest component tests):
 
 ```bash
-# Run all tests with verbose output
-pytest backend/tests -v
+# Run all backend tests with coverage report
+pytest backend/tests -v --cov=backend/app --cov-report=term
 
-# Run with full branch test coverage
-pytest backend/tests --cov=backend/app --cov-report=term
+# Run frontend test suite
+cd frontend && npm test
 ```
 
 ### Coverage Highlights:
-- **`agents/extractor.py`**: 95% Coverage
-- **`agents/base_agent.py`**: 100% Coverage
-- **`evaluation/hallucination_guard.py`**: 92% Coverage
+- **`agents/coordinator.py`**: 95% Coverage
+- **`agents/analytics.py`**: 92% Coverage
+- **`agents/orchestrator.py`**: 92% Coverage
+- **`evaluation/hallucination_guard.py`**: 96% Coverage
 - **`tools/data_quality.py`**: 98% Coverage
-- **`agents/analytics.py`**: 87% Coverage
-- **Overall Backend**: **84% Coverage (41 passed in 13.22s)**
+- **`tools/statistical_engine.py`**: 92% Coverage
+- **Overall Backend**: **85% Coverage (55 passed in 18.80s)**
+- **Frontend (Vitest)**: **8 passed in 6.84s (100% pass rate)**
 
 For the complete test plan, methodology, and verification formulas, see [`TESTING.md`](TESTING.md).
 
@@ -276,7 +278,7 @@ The required 1-2 page strategic paper answering Section 2 (*"How would you evolv
 👉 **[`INNOVATION_ASSESSMENT.md`](INNOVATION_ASSESSMENT.md)**
 
 It covers:
-- Sovereign, air-gapped LLM deployment via vLLM and SEA-LION under Singapore GCC 2.0
+- Sovereign, offline deterministic mode and local model deployment via vLLM and SEA-LION under Singapore GCC 2.0
 - Differential Privacy ($\epsilon, \delta$) enclaves for microdata protection
 - Cryptographic Merkle provenance citation trees
 - DuckDB / Apache Arrow in-process OLAP for multi-gigabyte census records

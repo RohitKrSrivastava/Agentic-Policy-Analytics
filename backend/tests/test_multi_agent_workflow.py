@@ -1,4 +1,5 @@
 import json
+
 import pytest
 
 from backend.app.agents.orchestrator import WorkflowOrchestrator
@@ -239,3 +240,132 @@ async def test_financial_services_sector_query_targets_financial_services():
     report_data = json.loads(sess.report_json)
     assert "Financial" in report_data.get("title", "")
     db.close()
+
+
+@pytest.mark.asyncio
+async def test_replan_node_on_empty_data():
+    """
+    Finding 1 & 4: ReAct Agent Replanning Node.
+    When primary time series data is empty (coverage gap), Orchestrator dynamically
+    invokes Coordinator reflection, adjusts the plan to Overall Economy, and re-executes.
+    """
+    session_id = "test-e2e-replan-node"
+    db = SessionLocal()
+
+    existing = db.query(DBAnalysisSession).filter(DBAnalysisSession.id == session_id).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+
+    new_sess = DBAnalysisSession(
+        id=session_id,
+        query="Analyse tech sector employment dynamics",
+        status=SessionStatus.PENDING.value
+    )
+    db.add(new_sess)
+    db.commit()
+    db.close()
+
+    orchestrator = WorkflowOrchestrator(session_id)
+
+    # Mock the first extraction call to simulate an unexpected empty dataset
+    original_extract = orchestrator.execute_workflow
+
+    from unittest.mock import patch
+
+    from backend.app.agents.extractor import DataExtractionAgent
+
+    real_extract = DataExtractionAgent.extract_sources
+    call_count = 0
+
+    async def mock_extract(self, plan=None, parameters=None, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First pass: empty singstat
+            return {
+                "datasets": {"singstat": [], "mom": [], "wages": []},
+                "quality_reports": [],
+                "provenance": {},
+                "overall_quality_score": 0.0,
+                "missing_sources": ["query_singstat_table"]
+            }
+        else:
+            # Replan pass: return real data
+            return await real_extract(self, plan=plan, parameters=parameters, **kwargs)
+
+    with patch.object(DataExtractionAgent, "extract_sources", side_effect=mock_extract, autospec=True):
+        await orchestrator.execute_workflow(
+            query="Analyse tech sector employment dynamics",
+            provider_preference="auto"
+        )
+
+    db = SessionLocal()
+    sess = db.query(DBAnalysisSession).filter(DBAnalysisSession.id == session_id).first()
+    assert sess is not None
+    assert sess.status == SessionStatus.COMPLETED.value
+    assert call_count >= 2  # Replanning executed extraction twice!
+
+    # Check that a reflection step for replanning was persisted
+    replan_logs = [log for log in sess.logs if "Replanning Data Strategy" in log.title]
+    assert len(replan_logs) >= 1
+    assert "Overall Economy" in replan_logs[0].content
+    db.close()
+
+
+@pytest.mark.asyncio
+async def test_multi_sector_finance_vs_tech_workflow():
+    """
+    Validates end-to-end multi-sector comparison workflow:
+    - Query compares technology vs financial services.
+    - Extractor acquires records for both sectors.
+    - Analytics generates cross-sector comparison chart and comparative findings.
+    - ReAct logs reflect multi-sector reasoning.
+    """
+    session_id = "test-multi-sec-fin-tech"
+    db = SessionLocal()
+    existing = db.query(DBAnalysisSession).filter(DBAnalysisSession.id == session_id).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+
+    new_sess = DBAnalysisSession(
+        id=session_id,
+        query="Compare tech employment with financial services from 2020 to 2024",
+        status=SessionStatus.PENDING.value
+    )
+    db.add(new_sess)
+    db.commit()
+    db.close()
+
+    orchestrator = WorkflowOrchestrator(session_id)
+    report = await orchestrator.execute_workflow(
+        query="Compare tech employment with financial services from 2020 to 2024",
+        provider_preference="local_fallback"
+    )
+
+    db = SessionLocal()
+    sess = db.query(DBAnalysisSession).filter(DBAnalysisSession.id == session_id).first()
+    assert sess is not None
+    assert sess.status == SessionStatus.COMPLETED.value
+    assert sess.progress_pct == 100
+
+    # Verify comparison chart is produced
+    assert sess.charts_json is not None
+    charts_data = json.loads(sess.charts_json)
+    chart_ids = [c["chart_id"] for c in charts_data]
+    assert "cross_sector_employment_comparison" in chart_ids
+
+    comp_chart = next(c for c in charts_data if c["chart_id"] == "cross_sector_employment_comparison")
+    assert "Information & Communications" in comp_chart["y_keys"]
+    assert "Financial & Insurance Services" in comp_chart["y_keys"]
+
+    # Verify comparative finding is produced
+    assert sess.report_json is not None
+    report_data = json.loads(sess.report_json)
+    findings = report_data.get("key_findings", [])
+    has_comp_finding = any("Comparative" in f["heading"] or "vs" in f["heading"] for f in findings)
+    assert has_comp_finding, "Expected at least one cross-sector comparative finding in report."
+
+    db.close()
+

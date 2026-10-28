@@ -88,8 +88,25 @@ async def test_real_llm_response_schema_validation_and_guard_audit():
         parsed = json.loads(res.content)
         assert parsed["title"] == mock_llm_json["title"]
 
-        # Verify through hallucination guard
-        v_res = hallucination_guard.verify_report(parsed)
+        # Verify through hallucination guard with ground truth context
+        gt_context = {
+            "metrics": {
+                "tech_cagr": 8.14,
+                "net_jobs_added": 56700,
+                "tech_total_growth_pct": 47.9,
+                "tech_median_wage": 7350
+            },
+            "datasets": {
+                "singstat": [
+                    {"year": 2020, "quarter": "Q1", "employment_thousands": 118.4, "sector": "Information & Communications"},
+                    {"year": 2024, "quarter": "Q4", "employment_thousands": 175.1, "sector": "Information & Communications"}
+                ],
+                "wages": [
+                    {"industry": "Information & Communications", "role_level": "Median", "median_gross_wage_sgd": 7350, "year": 2024}
+                ]
+            }
+        }
+        v_res = hallucination_guard.verify_report(parsed, ground_truth=gt_context)
         assert v_res["is_factually_consistent"] is True
         assert v_res["hallucination_score"] == 0.0
 

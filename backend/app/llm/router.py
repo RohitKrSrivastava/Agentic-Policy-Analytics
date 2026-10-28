@@ -12,8 +12,8 @@ logger = logging.getLogger("llm_router")
 
 class MultiCloudLLMRouter:
     """
-    Enterprise Multi-Cloud LLM Router with automated failover and telemetry.
-    Supports OpenAI, Google Cloud Gemini, AWS Bedrock, and an air-gapped deterministic engine.
+    Multi-Cloud LLM Router with automated failover and telemetry.
+    Supports OpenAI, Google Cloud Gemini, AWS Bedrock, and an offline deterministic mode.
     """
     def __init__(self):
         self.providers: dict[str, BaseLLMProvider] = {
@@ -86,6 +86,15 @@ class MultiCloudLLMRouter:
         res = await emergency_fallback.generate(prompt=prompt, system_prompt=system_prompt, json_mode=json_mode)
         res.fallback_used = True
         return res, attempted_providers
+
+    def get_provider_for_preference(self, preferred_provider: str = "auto") -> BaseLLMProvider:
+        if preferred_provider != "auto" and preferred_provider in self.providers:
+            return self.providers[preferred_provider]
+        for name in self.priority_order:
+            p = self.providers.get(name)
+            if p and getattr(p, "api_key", None):
+                return p
+        return self.providers["local_fallback"]
 
     async def get_providers_health(self) -> list[ProviderHealth]:
         health_list: list[ProviderHealth] = []

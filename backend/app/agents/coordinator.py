@@ -113,22 +113,39 @@ class DataCoordinatorAgent(BaseAgent):
         # Extract years (clamped to 2020-2024 coverage)
         years = [int(y) for y in re.findall(r'\b(20[1-2][0-9])\b', query)]
         if len(years) >= 2:
-            start_year = max(2020, min(years))
-            end_year = min(2024, max(years))
+            raw_start = min(years)
+            raw_end = max(years)
+            start_year = max(2020, min(raw_start, 2024))
+            end_year = min(2024, max(raw_end, 2020))
+            if start_year > end_year:
+                start_year, end_year = 2020, 2024
         elif len(years) == 1:
-            start_year = max(2020, min(years[0], 2024))
-            end_year = 2024
+            y = years[0]
+            if 2020 <= y <= 2024:
+                start_year = y
+                end_year = 2024
+            else:
+                start_year = 2020
+                end_year = 2024
         else:
             start_year = 2020
             end_year = 2024
 
-        # Extract sector focus
+        # Extract sector focus and detect multi-sector comparisons
+        detected_sectors = []
         if any(w in q_lower for w in ["finance", "banking", "financial", "insurance"]):
-            sector = "Financial & Insurance Services"
-        elif any(w in q_lower for w in ["overall", "economy", "all sector", "national"]):
-            sector = "Overall Economy"
-        else:
+            detected_sectors.append("Financial & Insurance Services")
+        if any(w in q_lower for w in ["tech", "ict", "information", "software", "digital", "communications"]):
+            detected_sectors.append("Information & Communications")
+        if any(w in q_lower for w in ["overall", "economy", "all sector", "national"]):
+            detected_sectors.append("Overall Economy")
+
+        if not detected_sectors:
             sector = "Information & Communications"
+            sectors = ["Information & Communications"]
+        else:
+            sector = detected_sectors[0]
+            sectors = detected_sectors
 
         # Determine metric focus
         focus_metrics = []
@@ -147,6 +164,7 @@ class DataCoordinatorAgent(BaseAgent):
             "start_year": start_year,
             "end_year": end_year,
             "sector": sector,
+            "sectors": sectors,
             "focus_metrics": focus_metrics
         }
 
@@ -189,40 +207,44 @@ class DataCoordinatorAgent(BaseAgent):
 
         # Step 3: Tool Selection & LLM Dynamic Planning
         selected_tools = []
-        if "employment" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
-            selected_tools.append({
-                "task_id": "ST-01",
-                "source": "DOS SingStat",
-                "tool_name": "query_singstat_table",
-                "reasoning": f"Extract quarterly {params['sector']} employment time series ({params['start_year']}-{params['end_year']}) to model CAGR and workforce trajectory.",
-                "parameters": {"sector": params["sector"], "start_year": params["start_year"], "end_year": params["end_year"]}
-            })
+        sectors_to_plan = params.get("sectors") or [params["sector"]]
+
+        for idx, sec in enumerate(sectors_to_plan, 1):
+            if "employment" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
+                selected_tools.append({
+                    "task_id": f"ST-EMP-0{idx}",
+                    "source": "DOS SingStat",
+                    "tool_name": "query_singstat_table",
+                    "reasoning": f"Extract quarterly {sec} employment time series ({params['start_year']}-{params['end_year']}) to model CAGR and workforce trajectory.",
+                    "parameters": {"sector": sec, "start_year": params["start_year"], "end_year": params["end_year"]}
+                })
+            if "wages" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
+                selected_tools.append({
+                    "task_id": f"ST-WAG-0{idx}",
+                    "source": "Data.gov.sg",
+                    "tool_name": "query_datagovsg_api",
+                    "reasoning": f"Connect to Data.gov.sg wage benchmarks to assess {sec} salary distribution and wage premium.",
+                    "parameters": {"industry": sec}
+                })
+
         if "vacancies" in params["focus_metrics"] or "retrenchments" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
             selected_tools.append({
-                "task_id": "ST-02",
+                "task_id": "ST-MOM-01",
                 "source": "MOM Statistics",
                 "tool_name": "query_mom_statistics",
                 "reasoning": f"Acquire MOM quarterly job vacancies, retrenchments, and vacancy-to-unemployed ratio for {params['start_year']}-{params['end_year']}.",
                 "parameters": {"sector": params["sector"], "start_year": params["start_year"], "end_year": params["end_year"]}
             })
-        if "wages" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
             selected_tools.append({
-                "task_id": "ST-03",
-                "source": "Data.gov.sg",
-                "tool_name": "query_datagovsg_api",
-                "reasoning": f"Connect to Data.gov.sg wage benchmarks to assess {params['sector']} salary distribution and wage premium over national median.",
-                "parameters": {"industry": params["sector"]}
-            })
-        if "vacancies" in params["focus_metrics"] or len(params["focus_metrics"]) > 2:
-            selected_tools.append({
-                "task_id": "ST-04",
+                "task_id": "ST-MOM-02",
                 "source": "MOM Excel",
                 "tool_name": "fetch_mom_turnover_excel",
                 "reasoning": f"Extract recruitment and resignation rates from MOM Labour Turnover Survey for {params['sector']}.",
                 "parameters": {"sector": params["sector"]}
             })
+
         selected_tools.append({
-            "task_id": f"ST-0{len(selected_tools)+1}",
+            "task_id": f"ST-POL-0{len(selected_tools)+1}",
             "source": "Internal Policy DB",
             "tool_name": "fetch_internal_policy_kpis",
             "reasoning": "Retrieve strategic policy initiatives, funding allocations, and TeSA / AI Strategy 2.0 KPI benchmarks.",
