@@ -79,7 +79,8 @@ For complete architectural details, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ### Prerequisites
 - Python 3.11+ (or Python 3.14)
-- Node.js 18+ & npm 9+
+- Node.js 22.x
+- npm 10.x (bundled with Node 22)
 - (Optional) Docker & Docker Compose
 
 ---
