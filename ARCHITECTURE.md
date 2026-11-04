@@ -89,18 +89,18 @@ The platform structures workflow execution as a compiled asynchronous **StateGra
 
 ```mermaid
 flowchart LR
-    START((__start__)) --> PLAN[Node: Plan]
-    PLAN --> ROUTE_PLAN{route_plan}
-    ROUTE_PLAN -->|Valid Query| EXTRACT[Node: Extract]
-    ROUTE_PLAN -->|Out of Scope / Clarify| PUBLISH[Node: Publish]
-    EXTRACT --> CHECK{Node: Check Coverage}
-    CHECK --> ROUTE_COV{route_coverage}
-    ROUTE_COV -->|Complete Data| ANALYZE[Node: Analyze]
-    ROUTE_COV -->|Missing Source| REPLAN[Node: Replan]
-    REPLAN -->|Loop (max 2)| CHECK
-    REPLAN -->|Exhausted| ANALYZE
+    START((Start)) --> PLAN["Node: Plan"]
+    PLAN --> ROUTE_PLAN{"route_plan"}
+    ROUTE_PLAN -->|"Valid Query"| EXTRACT["Node: Extract"]
+    ROUTE_PLAN -->|"Out of Scope / Clarify"| PUBLISH["Node: Publish"]
+    EXTRACT --> CHECK{"Node: Check Coverage"}
+    CHECK --> ROUTE_COV{"route_coverage"}
+    ROUTE_COV -->|"Complete Data"| ANALYZE["Node: Analyze"]
+    ROUTE_COV -->|"Missing Source"| REPLAN["Node: Replan"]
+    REPLAN -->|"Loop max 2 iterations"| CHECK
+    REPLAN -->|"Exhausted"| ANALYZE
     ANALYZE --> PUBLISH
-    PUBLISH --> END((__end__))
+    PUBLISH --> END((End))
 ```
 
 This design provides four key advantages for government policy applications:

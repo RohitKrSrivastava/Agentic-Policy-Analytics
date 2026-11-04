@@ -30,42 +30,42 @@ A research prototype full-stack agentic platform designed for public policy rese
 
 ```mermaid
 flowchart TD
-    subgraph Frontend_UI [Frontend: React 18 / Vite / TypeScript + Tailwind CSS]
-        A1[Natural Language Query Bar]
-        A2[Live ReAct Step Monitor]
-        A3[Interactive Dashboard Recharts]
-        A4[Policy Report & Citation Table]
+    subgraph Frontend_UI ["Frontend: React 18 / Vite / TypeScript + Tailwind CSS"]
+        A1["Natural Language Query Bar"]
+        A2["Live ReAct Step Monitor"]
+        A3["Interactive Dashboard Recharts"]
+        A4["Policy Report & Citation Table"]
     end
 
-    subgraph Backend_FastAPI [Backend: FastAPI + WebSockets + SQLAlchemy]
-        B1[REST API Endpoints]
-        B2[WebSocket Broadcast Manager]
-        B3[Asyncio Background Task Worker]
+    subgraph Backend_FastAPI ["Backend: FastAPI + WebSockets + SQLAlchemy"]
+        B1["REST API Endpoints"]
+        B2["WebSocket Broadcast Manager"]
+        B3["Asyncio Background Task Worker"]
     end
 
     subgraph Agentic_Layer [Autonomous Multi-Agent ReAct Engine]
-        C1[Data Coordinator Agent: Workflow Planning]
-        C2[Data Extraction Agent: Acquisition & Cleaning]
-        C3[Analytics Agent: Econometrics, RAG & Synthesis]
-        C4[Hallucination Verification Guard: Ground Truth Audit]
+        C1["Data Coordinator Agent: Workflow Planning"]
+        C2["Data Extraction Agent: Acquisition & Cleaning"]
+        C3["Analytics Agent: Econometrics, RAG & Synthesis"]
+        C4["Hallucination Verification Guard: Ground Truth Audit"]
     end
 
     subgraph Multi_Cloud_LLMs [Multi-Cloud LLM Router & Failover]
-        D1[(OpenAI GPT-4o)]
-        D2[(Google Cloud Gemini 1.5)]
-        D3[(AWS Bedrock Claude 3.5)]
-        D4[(Local Deterministic Safety Engine)]
+        D1[("OpenAI GPT-4o")]
+        D2[("Google Cloud Gemini 1.5")]
+        D3[("AWS Bedrock Claude 3.5")]
+        D4[("Local Deterministic Safety Engine")]
     end
 
     subgraph Singapore_Data [Singapore Public Sector Repositories]
-        E1[DOS SingStat: CSV Table 14.1]
-        E2[MOM Statistics: JSON Labour Market]
-        E3[Data.gov.sg: REST API v2 Wages]
-        E4[MOM Survey: Excel .xlsx Turnover]
-        E5[Internal Policy DB: SQLite TeSA KPIs]
+        E1["DOS SingStat: CSV Table 14.1"]
+        E2["MOM Statistics: JSON Labour Market"]
+        E3["Data.gov.sg: REST API v2 Wages"]
+        E4["MOM Survey: Excel .xlsx Turnover"]
+        E5["Internal Policy DB: SQLite TeSA KPIs"]
     end
 
-    Frontend_UI <-->|REST & WebSockets| Backend_FastAPI
+    Frontend_UI <-->|"REST & WebSockets"| Backend_FastAPI
     Backend_FastAPI --> Agentic_Layer
     Agentic_Layer <--> Multi_Cloud_LLMs
     Agentic_Layer <--> Singapore_Data
